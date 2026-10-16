@@ -1,0 +1,166 @@
+export type Theme = 'dark' | 'light';
+export type ThemePref = Theme | 'system';
+
+export type ViewId =
+  | 'welcome'
+  | 'now'
+  | 'open'
+  | 'library'
+  | 'settings'
+  | 'plugins'
+  | 'shortcuts'
+  | 'about';
+
+export type MediaKind = 'video' | 'audio' | 'error';
+
+export interface VideoMedia {
+  kind: 'video';
+  title: string;
+  sub: string;
+  dur: number;
+  codec: string;
+}
+
+export interface AudioMedia {
+  kind: 'audio';
+  title: string;
+  artist: string;
+  album: string;
+  year: number;
+  dur: number;
+  meta: string;
+}
+
+export interface ErrorMedia {
+  kind: 'error';
+  title: string;
+  dur: number;
+  codec: string;
+}
+
+export type Media = VideoMedia | AudioMedia | ErrorMedia;
+
+export interface RecentItem {
+  n: string;
+  p: string;
+  d: string;
+  k: 'video' | 'audio';
+}
+
+export interface OpenFileRow {
+  n: string;
+  p: string;
+  t: string;
+  s: string;
+  m: string;
+  d: string;
+  k: 'video' | 'audio' | 'file';
+}
+
+export interface LibraryRow {
+  t: string;
+  p: string;
+  d: string;
+  f: string;
+  a: string;
+  pl: number;
+  missing?: boolean;
+}
+
+export interface QueueItem {
+  n: string;
+  d: string;
+  on?: boolean;
+  bad?: boolean;
+}
+
+export type PluginStatus = 'ok' | 'conflict' | 'failed' | 'incompat';
+
+export interface Plugin {
+  id: string;
+  n: string;
+  p: string;
+  v: string;
+  c: string;
+  d: string;
+  on: boolean;
+  st: PluginStatus;
+  err?: string;
+}
+
+export interface Scene {
+  id: string;
+  l: string;
+}
+
+export type ToastKind = 'ok' | 'err';
+
+export interface Toast {
+  id: string;
+  msg: string;
+  kind?: ToastKind;
+}
+
+export type ModalId = 'install' | null;
+
+export interface IconProps {
+  name: IconName;
+  size?: number;
+  weight?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export type IconName = keyof typeof import('./lib/Icons').paths;
+
+
+export type PluginPermissionId =
+| 'network'
+| 'read-media'
+| 'write-config'
+| 'spawn'
+| 'audio-output'
+| 'draw-overlay';
+
+export interface PluginPermission {
+  id: PluginPermissionId;
+  /** Plain-language statement in the "will be able to" tense. */
+  grant: string;
+  /** Plain-language statement in the "can" tense, for the installed view. */
+  held: string;
+  risk: 'Low' | 'Medium' | 'High';
+}
+
+export interface PluginActivity {
+  at: string;        // "14:02:11"
+  level: 'info' | 'warn' | 'error';
+  msg: string;
+}
+
+export interface Plugin {
+  id: string;
+  n: string;
+  p: string;              // provider
+  v: string;              // version
+  c: string;              // category
+  d: string;              // one-line description
+  long?: string;          // paragraph-length description for the detail view
+  homepage?: string;      // URL opened in the system browser
+  on: boolean;
+  st: PluginStatus;
+  err?: string;
+  /** Permission IDs this plugin declares. */
+  permissions?: PluginPermissionId[];
+  /** Whether the install signature verified. */
+  signed?: boolean;
+  /** Hooks the plugin registers — used for conflict detection. */
+  hooks?: string[];
+  /** Recent activity, most recent first. */
+  activity?: PluginActivity[];
+  /** Install path, shown in the uninstall confirmation. */
+  installPath?: string;
+  /** Size on disk, human-formatted. */
+  size?: string;
+  /** Plugin API version the plugin targets. */
+  apiVersion?: string;
+}

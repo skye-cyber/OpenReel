@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+/* ============================================================
+   DESIGN TOKENS
+   Tailwind v4 reads @theme and generates utilities:
+   --color-surface  → bg-surface / text-surface / border-surface
+   --radius-lg      → rounded-lg
+   --font-sans      → font-sans
+   ============================================================ */
+@theme {
+  --color-app:        #0c0e11;
+  --color-surface:    #13161a;
+  --color-surface-2:  #181c21;
+  --color-surface-3:  #1f242b;
+  --color-hover:      #22272e;
+  --color-active:     #282f38;
+
+  --color-border:     rgba(255,255,255,.065);
+  --color-border-2:   rgba(255,255,255,.11);
+  --color-border-3:   rgba(255,255,255,.2);
+
+  --color-text:       #eceef1;
+  --color-text-2:     #98a1ac;
+  --color-text-3:     #69727d;
+
+  --color-accent:     #e8875a;
+  --color-accent-hi:  #f29c74;
+  --color-accent-dim: rgba(232,135,90,.15);
+  --color-accent-soft:rgba(232,135,90,.09);
+
+  --color-success:    #5cba82;
+  --color-success-dim:rgba(92,186,130,.13);
+  --color-warning:    #d9a13b;
+  --color-warning-dim:rgba(217,161,59,.13);
+  --color-danger:     #e0645c;
+  --color-danger-dim: rgba(224,100,92,.13);
+
+  --color-video:      #08090b;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
+
+  --shadow-lg: 0 24px 64px rgba(0,0,0,.62), 0 2px 10px rgba(0,0,0,.45);
+  --shadow-md: 0 12px 32px rgba(0,0,0,.45);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,.32);
+}
+
+/* Light theme — same names, different values. */
+[data-theme="light"] {
+  --color-app:        #f0f1f3;
+  --color-surface:    #ffffff;
+  --color-surface-2:  #f8f9fb;
+  --color-surface-3:  #eceef1;
+  --color-hover:      #e8ebef;
+  --color-active:     #e0e4e9;
+
+  --color-border:     rgba(0,0,0,.075);
+  --color-border-2:   rgba(0,0,0,.13);
+  --color-border-3:   rgba(0,0,0,.22);
+
+  --color-text:       #14171b;
+  --color-text-2:     #5b6470;
+  --color-text-3:     #8b939d;
+
+  --color-accent:     #d4703f;
+  --color-accent-hi:  #bf5f31;
+  --color-accent-dim: rgba(212,112,63,.11);
+  --color-accent-soft:rgba(212,112,63,.07);
+
+  --color-success:    #2f8a55;
+  --color-success-dim:rgba(47,138,85,.1);
+  --color-warning:    #9c7118;
+  --color-warning-dim:rgba(156,113,24,.1);
+  --color-danger:     #c33b32;
+  --color-danger-dim: rgba(195,59,50,.09);
+
+  --shadow-lg: 0 24px 64px rgba(20,24,30,.2), 0 2px 10px rgba(20,24,30,.09);
+  --shadow-md: 0 12px 32px rgba(20,24,30,.14);
+  --shadow-sm: 0 2px 10px rgba(20,24,30,.08);
+}
+
+/* ---------- Reduced motion ---------- */
+/* By default, motion follows the OS setting via the data attribute. */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  /*
+   0.001ms instead of 0. A transition-duration of exactly 0 sometimes causes a reflow that makes things jump. 0.001ms is effectively instantaneous but skips the reflow. This is the standard trick.
+
+   Reduced motion is a hard override — no component should be able to opt out. Using a descendant selector with !important guarantees the rule wins against any specificity the components have. It can be overriden by inline styling.
+   */
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* The spinner and pulsing dot become static when motion is reduced.
+ *  They still convey state (via text next to them and color), just
+ *  without movement. */
+html[data-motion="reduced"] .animate-spin-slow {
+  animation: none;
+  border-top-color: var(--color-accent);
+  opacity: 0.7;
+}
+html[data-motion="reduced"] .animate-pulse-dot {
+  animation: none;
+  opacity: 0.85;
+}
+
+/* The equalizer bars become a static signal. */
+html[data-motion="reduced"] .eq-bars i {
+  animation: none;
+  transform: none;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+@layer base {
+  html, body, #root { height: 100%; }
+  body { margin: 0; font-family: var(--font-sans); font-size: 13px; line-height: 1.45; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
+  ::selection { background: var(--color-accent-dim); }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-2);
+    border-radius: 8px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-border-3); background-clip: content-box; }
+}
+
+/* ============================================================
+   COMPONENT PRIMITIVES
+   Using @utility so they compose with Tailwind classes.
+   ============================================================ */
+
+@utility btn-base {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 30px; padding: 0 13px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface-2); color: var(--color-text);
+  font-size: 12.5px; font-weight: 550; white-space: nowrap;
+  transition: background .12s, border-color .12s, transform .08s;
+}
+@utility btn-hover {
+  &:hover { background: var(--color-hover); border-color: var(--color-border-3); }
+  &:active { transform: translateY(.5px); }
+  &:disabled { opacity: .36; pointer-events: none; }
+}
+
+@utility ibtn-base {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--radius-md);
+  color: var(--color-text-2);
+  transition: background .12s, color .12s;
+}
+@utility ibtn-hover {
+  &:hover { background: var(--color-hover); color: var(--color-text); }
+  &:disabled { opacity: .3; pointer-events: none; }
+}
+
+@utility chip-base {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 21px; padding: 0 8px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 650; letter-spacing: .02em;
+  border: 1px solid var(--color-border-2); color: var(--color-text-2);
+  white-space: nowrap;
+}
+
+@utility nav-base {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 7px 10px; border-radius: var(--radius-md);
+  color: var(--color-text-2); font-size: 12.5px; font-weight: 500;
+  position: relative; text-align: left;
+  transition: background .12s, color .12s;
+}
+@utility nav-hover {
+  &:hover { background: var(--color-hover); color: var(--color-text); }
+}
+
+@utility row-base {
+  display: flex; align-items: center; gap: 11px; padding: 8px 11px;
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: background .1s;
+}
+@utility row-hover {
+  &:hover { background: var(--color-surface); }
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fade-up { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes menu-in { from { opacity: 0; transform: scale(.96) translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes modal-in { from { opacity: 0; transform: scale(.97) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes eq { 0%,100% { transform: scaleY(.45); } 50% { transform: scaleY(1); } }
+
+@utility animate-fade-up { animation: fade-up .22s cubic-bezier(.2,.7,.3,1); }
+@utility animate-slide-in { animation: slide-in .22s cubic-bezier(.2,.8,.3,1); }
+@utility animate-menu-in { animation: menu-in .13s cubic-bezier(.2,.8,.3,1); }
+@utility animate-modal-in { animation: modal-in .2s cubic-bezier(.2,.8,.3,1); }
+@utility animate-fade-in { animation: fade-in .16s; }
+@utility animate-toast-in { animation: toast-in .22s cubic-bezier(.2,.8,.3,1); }
+@utility animate-spin-slow { animation: spin .7s linear infinite; }
+@utility animate-pulse-dot { animation: pulse 1.6s infinite; }

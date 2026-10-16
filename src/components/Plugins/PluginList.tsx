@@ -1,0 +1,165 @@
+import { useMemo, useState } from "react";
+import Icon from "../../lib/Icons";
+import { Button } from "../Button";
+import { usePlayer } from "../../state/PlayerContext";
+import { IconButton } from "../Button";
+import { Field } from "../Field";
+import { PluginRow } from "./Row";
+
+type Filter = 'all' | 'enabled' | 'disabled' | 'attention';
+
+const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
+    { id: 'all', l: 'All' },
+    { id: 'enabled', l: 'Enabled' },
+    { id: 'disabled', l: 'Disabled' },
+    { id: 'attention', l: 'Needs attention' },
+];
+
+export function PluginsList() {
+    const { plugins, setModal, setPluginEnabled, selectPlugin } = usePlayer();
+    const [q, setQ] = useState('');
+    const [filter, setFilter] = useState<Filter>('all');
+
+    const installed = useMemo(() => {
+        const query = q.trim().toLowerCase();
+        return plugins.filter(p => {
+            if (query && !p.n.toLowerCase().includes(query)) return false;
+
+            switch (filter) {
+                case 'enabled':
+                    return p.st === 'ok' && p.on;
+
+                case 'disabled':
+                    // "Disabled" means: not currently running AND not blocked by
+                    // a problem the user hasn't addressed. A failed or conflicting
+                    // plugin that's turned off is still "needs attention" — the
+                    // user has an outstanding decision — so it doesn't belong here.
+                    return !p.on && p.st === 'ok';
+
+                case 'attention':
+                    // Anything the user needs to act on: a conflict, a load
+                    // failure, an incompatible package, or a plugin that reports
+                    // OK but is somehow off when the user expected it on.
+                    // (The last case doesn't occur in the current data, but the
+                    // predicate is written so it stays true if it ever does.)
+                    return p.st === 'conflict' || p.st === 'failed' || p.st === 'incompat';
+
+                case 'all':
+                default:
+                    return true;
+            }
+        });
+    }, [plugins, q, filter]);
+
+    const counts = useMemo(() => ({
+        all: plugins.length,
+        enabled: plugins.filter(p => p.st === 'ok' && p.on).length,
+        disabled: plugins.filter(p => !p.on && p.st === 'ok').length,
+        attention: plugins.filter(p => p.st !== 'ok').length,
+    }), [plugins]);
+
+    return (
+        <div className="p-6.5 px-8 pb-10 max-w-[1180px] h-[90%] overflow-y-auto">
+            <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Plugins</h1>
+            <p className="text-[12.5px] text-text-2 mb-5.5">
+                Optional extensions. OpenReel plays media without any of them.
+            </p>
+
+            <div className="flex items-center gap-3 p-[11px_16px] rounded-md text-[12.5px] mb-4.5 bg-warning-dim border border-[rgba(217,161,59,.28)]">
+                <Icon name="warn" size={16} className="text-warning" />
+                <div className="flex-1">
+                    <b>Safe mode was used on the last start.</b>{' '}
+                    <span className="text-text-2">Plugins are currently disabled.</span>
+                </div>
+                <Button size="sm">Manage plugins</Button>
+                <Button size="sm">Restart normally</Button>
+            </div>
+
+            <div className="flex items-center gap-2.5 mb-4.5 flex-wrap">
+                <Field
+                    icon="search"
+                    placeholder="Search plugins…"
+                    value={q}
+                    onValue={setQ}
+                    style={{ maxWidth: 260, flex: '0 1 260px' }}
+                />
+
+                {FILTERS.map(f => {
+                    const active = filter === f.id;
+                    const count = counts[f.id];
+                    return (
+                        <button
+                            key={f.id}
+                            onClick={() => setFilter(f.id)}
+                            aria-pressed={active}
+                            className={`h-7 px-3 rounded-[20px] border text-[12px] transition-all
+          ${active
+                                    ? 'bg-accent-dim border-transparent text-accent font-semibold'
+                                    : 'bg-surface border-border-2 text-text-2 hover:border-border-3 hover:text-text'}`}
+                        >
+                            {f.l}
+                            <span className={`ml-1.5 tabular-nums ${active ? 'text-accent/70' : 'text-text-3'}`}>
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
+
+                <div className="flex-1" />
+                <Button size="sm" icon="download" onClick={() => setModal('install')}>
+                    Install from file…
+                </Button>
+                <IconButton icon="chevDown" title="More" />
+            </div>
+
+            <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 mb-2.5">
+                Installed · {installed.length}
+            </div>
+
+            {installed.length === 0 ? (
+                <EmptyState query={q} filter={filter} />
+            ) : (
+                installed.map(p => (
+                    <PluginRow
+                        key={p.id}
+                        plugin={p}
+                        onToggle={() => setPluginEnabled(p.id, !p.on)}
+                        onDetails={() => selectPlugin(p.id)}
+                    />
+                ))
+            )}
+
+            <div className="mt-5.5">
+                <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 mb-2.5">
+                    Available · 0 sources configured
+                </div>
+                <div className="flex items-center gap-3 rounded-md p-[10px_14px] text-[12px] leading-relaxed
+    bg-surface-2 border border-border text-text-2">
+                    <Icon name="external" size={16} className="text-text-3" />
+                    <div className="flex-1">No plugin repositories are configured. Add one to browse available plugins.</div>
+                    <Button size="sm">Add repository…</Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function EmptyState({ query, filter }: { query: string; filter: Filter }) {
+    const hasQuery = query.trim().length > 0;
+    const hasFilter = filter !== 'all';
+
+    const message = (() => {
+        if (hasQuery && hasFilter) return <>No plugins match “{query}” in this filter.</>;
+        if (hasQuery) return <>No plugins match “{query}”.</>;
+        if (filter === 'enabled') return <>No plugins are currently enabled.</>;
+        if (filter === 'disabled') return <>No plugins are installed but disabled.</>;
+        if (filter === 'attention') return <>Nothing needs your attention. All good.</>;
+        return <>No plugins installed.</>;
+    })();
+
+    return (
+        <div className="py-10 text-center text-[12.5px] text-text-2">
+            {message}
+        </div>
+    );
+}
