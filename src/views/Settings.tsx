@@ -3,14 +3,10 @@ import { Field } from '../components/Field';
 import { SideNav } from '../components/Settings/Sidenav';
 import { SearchResults } from '../components/Settings/SearchResults';
 import { Panel } from '../components/Settings/Panel';
-import type { Cat } from '../types/settings';
+import { usePlayer } from '../state/PlayerContext';
 
-
-/* ============================================================
- *  Settings view
- *  ============================================================ */
 export default function Settings() {
-    const [cat, setCat] = useState<Cat>('video');
+    const { settingCat: cat, setSettingCat: setCat } = usePlayer();
     const [q, setQ] = useState('');
 
     const searching = q.trim().length > 0;

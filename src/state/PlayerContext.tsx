@@ -12,9 +12,11 @@ import { fmt } from '../lib/format';
 import { loadPrefs, savePrefs } from './persist';
 import {
     DEFAULT_SETTINGS,
+    type Cat,
     type SettingKey,
     type Settings,
 } from '../types/settings';
+import { Session } from '../lib/platform/session';
 
 interface PlayerState {
     theme: Theme;
@@ -120,6 +122,9 @@ interface PlayerState {
     isChanged: <K extends SettingKey>(key: K) => boolean;
     resetSetting: <K extends SettingKey>(key: K) => void;
     resetAllSettings: () => void;
+
+    settingCat: Cat;
+    setSettingCat: (cat: Cat) => void;
 }
 
 const PlayerCtx = createContext<PlayerState | null>(null);
@@ -131,6 +136,7 @@ function prependActivity(p: Plugin, level: PluginActivity['level'], msg: string)
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+    const [settingCat, setSettingCat] = useState<Cat>('video');
     const [view, setView] = useState<ViewId>('now');
     const [media, setMedia] = useState<Media | null>(null);
     const [playing, setPlaying] = useState(false);
@@ -152,9 +158,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
     const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(null);
     const [prefs] = useState(loadPrefs);  // loads once, never updated
+    // A ref to track the current save-loop so we can clear it:
+    const saveLoopRef = useRef<number | null>(null);
+
     /*
- * The .map() filter is necessary. If a plugin was uninstalled in a previous session, its key is still in the persisted map. The map from PLUGINS (which is the source of installed plugins) skips unknown ids.
- */
+        The .map() filter is necessary. If a plugin was uninstalled in a previous session, its key is still in the persisted map. The map from PLUGINS (which is the source of installed plugins) skips unknown ids.
+    */
     const [plugins, setPlugins] = useState<Plugin[]>(() => {
         const persisted = prefs.plugins ?? {};
         const uninstalled = new Set(prefs.uninstalled ?? []);
@@ -276,28 +285,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }, [announce]);
 
     const selectPlugin = useCallback((id: string | null) => {
+        if (id !== null && !settings.pluginsEnabled) return;
         setSelectedPluginId(id);
-        if (id === null) {
-            // When leaving the detail, clear any uninstall confirmation.
-            setConfirmUninstallId(null);
-        }
-    }, []);
 
+        // When leaving the detail, clear any uninstall confirmation.
+        if (id === null) setConfirmUninstallId(null);
+    }, [settings.pluginsEnabled]);
+
+    // pluginsEnabled needs to be enforced at the state layer, not just the view.
+    // Otherwise a stray call to setPluginEnabled from a keyboard shortcut or a modal would still work.
     const setPluginEnabled = useCallback((id: string, on: boolean) => {
+        if (!settings.pluginsEnabled) return;
         setPlugins(prev => prev.map(p => {
             if (p.id !== id) return p;
             if (p.st === 'incompat') return p;
             return { ...p, on };
         }));
-    }, []);
+    }, [settings.pluginsEnabled]);
 
+    // uninstallPlugin — allowed when off, since removing a disabled plugin is legitimate
     const uninstallPlugin = useCallback((id: string) => {
         setPlugins(prev => prev.filter(p => p.id !== id));
         setSelectedPluginId(cur => (cur === id ? null : cur));
         setConfirmUninstallId(null);
     }, []);
 
+    // silent conflict resolution - no-ops when off, since both plugins are off anyway:
     const resolveConflict = useCallback((winnerId: string, loserId: string) => {
+        if (!settings.pluginsEnabled) return;
         setPlugins(prev => prev.map(p => {
             if (p.id === winnerId) return { ...p, on: true, st: 'ok', activity: prependActivity(p, 'info', 'Enabled — resolved conflict') };
             if (p.id === loserId) return { ...p, on: false, st: 'ok', activity: prependActivity(p, 'warn', 'Disabled — conflict resolved by user') };
@@ -334,6 +349,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         document.addEventListener('fullscreenchange', onChange);
         return () => document.removeEventListener('fullscreenchange', onChange);
     }, []);
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-density', settings.density);
+    }, [settings.density]);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -393,13 +412,46 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     /* --------------------------------------------------------
      *    Media loading
      *    -------------------------------------------------------- */
+    const posRef = useRef(pos);
+    const durRef = useRef(dur);
+    const mediaRef = useRef(media);
+    posRef.current = pos;
+    durRef.current = dur;
+    mediaRef.current = media;
+
     const playMedia = useCallback((m: Media) => {
+        // Save the outgoing item's position before we replace it.
+        const oldMedia = mediaRef.current;
+        const oldPos = posRef.current;
+        const oldDur = durRef.current;
+
+        if (oldMedia && settings.resumeEnabled && oldDur > 0) {
+            const seconds = oldPos * oldDur;
+            if (seconds >= settings.resumeThreshold) {
+                Session.set(oldMedia.title, seconds);
+            }
+        }
+
         setMedia(m);
         setPlaying(true);
-        seekTo(0);
         setView('now');
+        const saved = Session.get(m.title);
+        const shouldResume =
+            settings.resumeEnabled &&
+            saved !== undefined &&
+            saved >= settings.resumeThreshold &&
+            m.dur > 0 &&
+            saved < m.dur * 0.95;   // don't resume within the last 5% — the user
+        // is probably near the end and wants to finish
+
+        if (shouldResume && saved !== undefined) {
+            seekTo(saved / m.dur);
+            toast(`Resuming at ${fmt(saved)}`);
+        } else {
+            seekTo(0);
+        }
         setScene(m.kind === 'audio' ? 'audio' : 'video');
-    }, [setMedia, setView, seekTo]);
+    }, [setMedia, setView, seekTo, settings.resumeEnabled, settings.resumeThreshold, toast]);
 
     const takeSnapshot = useCallback(() => {
         if (!hasMedia) return;
@@ -407,6 +459,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         toast(`Snapshot saved at ${t} — JPEG 1920×1080`);
     }, [hasMedia, pos, dur, toast]);
 
+
+    // Save loop — a useEffect keyed on playing, media, and the setting
+    useEffect(() => {
+        if (!settings.resumeEnabled) return;
+        if (!playing || !media || dur === 0) return;
+
+        const tick = () => {
+            const seconds = posRef.current * dur;
+            if (seconds >= settings.resumeThreshold) {
+                Session.set(media.title, seconds);
+            }
+        };
+
+        // Save every 5 seconds while playing.
+        saveLoopRef.current = window.setInterval(tick, 5000);
+
+        // Also save on pause (which fires this cleanup).
+        return () => {
+            if (saveLoopRef.current !== null) {
+                window.clearInterval(saveLoopRef.current);
+                saveLoopRef.current = null;
+            }
+            // The effect cleans up on pause, so save the current position now.
+            if (playing) tick();
+        };
+    }, [playing, media, dur, settings.resumeEnabled, settings.resumeThreshold]);
+
+    // Clear on completion. When pos reaches ~1.0:
+    useEffect(() => {
+        if (!media) return;
+        if (pos >= 0.999 && media.dur > 0) {
+            Session.delete(media.title);
+        }
+    }, [pos, media]);
 
     /* --------------------------------------------------------
      *    Queue navigation
@@ -440,9 +526,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const prevItem = useCallback(() => {
         if (queue.length === 0) return;
-        // Restart current item if we're more than 3 seconds in.
-        if (pos > 3 / Math.max(dur, 1)) {
-            seekTo(0);
+        // Restart current item if we're more than set duration=3s in.
+        if (settings.previousRestartsCurrent && pos * dur > 3) {
+            setPos(0);
             return;
         }
         for (let step = 1; step <= queue.length; step++) {
@@ -453,7 +539,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 return;
             }
         }
-    }, [queue, queueIndex, playQueueItem, pos, dur, toast]);
+    }, [queue, queueIndex, playQueueItem, pos, dur, toast, settings.previousRestartsCurrent]);
 
     /* --------------------------------------------------------
      *    Seeking
@@ -559,6 +645,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setAudioTrackAnnounced, setSubTrackAnnounced,
         liveMessage, setLiveMessage, announce,
         settings, setSetting, isChanged, resetSetting, resetAllSettings,
+        // Setting Category
+        settingCat, setSettingCat
     }), [
         // ---- Must mirror the value object field-for-field ----
         theme, themePref, systemDark,

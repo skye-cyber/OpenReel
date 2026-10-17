@@ -33,7 +33,7 @@ export function EmptyState() {
                         <div
                             key={i}
                             onClick={() => playMedia(VIDEO)}
-                            className="flex items-center gap-2.5 p-[8px_11px] rounded-md cursor-pointer transition-colors hover:bg-surface"
+                            className="rec flex items-center gap-2.5 p-[8px_11px] rounded-md cursor-pointer transition-colors hover:bg-surface"
                         >
                             <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border flex items-center justify-center
             text-text-3 shrink-0">

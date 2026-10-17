@@ -120,6 +120,26 @@ html[data-motion="reduced"] .eq-bars i {
   transform: none;
 }
 
+/* ---------- Density ---------- */
+/* Compact reduces row heights across the app. The selectors target every
+ row-like primitive we have. This is intentionally a global override —
+ a per-component approach would require threading density into every
+ component that renders a row, which is a much larger change for the
+ same visible result. */
+
+html[data-density="compact"] .tbl td { padding-top: 6px; padding-bottom: 6px; } /*Library, OpenView tables.*/
+html[data-density="compact"] .tbl th { padding-bottom: 6px; }
+
+html[data-density="compact"] .row-base { padding-top: 5px; padding-bottom: 5px; } /*Innexistent*/
+
+html[data-density="compact"] .nav-item { padding-top: 5px; padding-bottom: 5px; } /*Sidebar.*/
+
+html[data-density="compact"] .rec { padding-top: 5px; padding-bottom: 5px; } /*Empty state recents list. */
+
+html[data-density="compact"] .q-row { padding-top: 5px; padding-bottom: 5px; } /*Queue*/
+
+html[data-density="compact"] .pl-row { padding-top: 10px; padding-bottom: 10px; } /*Plugin list*/
+
 /* ============================================================
    BASE
    ============================================================ */

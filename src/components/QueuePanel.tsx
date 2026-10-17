@@ -83,8 +83,7 @@ export function QueuePanel() {
                                     openCtx(e, { item: q, index: i });
                                 }
                             }}
-                            className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-sm text-[12.5px] cursor-pointer
-                    transition-colors hover:bg-hover focus:outline-none focus-visible:bg-surface-2
+                            className={`q-row flex items-center gap-2.5 px-2.5 py-[7px] rounded-sm text-[12.5px] cursor-pointer transition-colors hover:bg-hover focus:outline-none focus-visible:bg-surface-2
                     ${active ? 'bg-accent-soft' : ''}`}
                         >
                             <div className="w-4 text-[11px] text-text-3 text-center shrink-0 tabular-nums">

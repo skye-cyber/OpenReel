@@ -39,7 +39,7 @@ export default function Library() {
             return true;
         });
     }, [filter, q]);
-
+    console.log(rows)
     const anyFilter = filter !== 'all' || q.trim().length > 0;
 
     const entriesFor = (row: LibraryRow): ContextMenuEntry[] => [
@@ -111,23 +111,22 @@ export default function Library() {
                 <table className="w-full border-collapse text-[12.5px]">
                     <thead>
                         <tr>
-                            <th className="w-[42%] text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3
-            px-3 pb-2.5 border-b border-border whitespace-nowrap">Title</th>
+                            <th className="w-[42%] text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3 px-3 pb-2.5 border-b border-border whitespace-nowrap">Title</th>
                             {['Duration', 'Format', 'Added'].map(h => (
-                                <th key={h} className="text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3
-                px-3 pb-2.5 border-b border-border whitespace-nowrap">{h}</th>
+                                <th key={h} className="text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3 px-3 pb-2.5 border-b border-border whitespace-nowrap">{h}</th>
                             ))}
-                            <th className="text-right text-[10px] font-bold tracking-[.08em] uppercase text-text-3
-            px-3 pb-2.5 border-b border-border whitespace-nowrap">Plays</th>
-                            <th className="text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3
-            px-3 pb-2.5 border-b border-border whitespace-nowrap">Status</th>
+                            <th className="text-right text-[10px] font-bold tracking-[.08em] uppercase text-text-3 px-3 pb-2.5 border-b border-border whitespace-nowrap">Plays</th>
+                            <th className="text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3 px-3 pb-2.5 border-b border-border whitespace-nowrap">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((r, i) => (
+                        {rows.map((r: LibraryRow, i) => (
                             <tr
                                 key={i}
-                                onDoubleClick={() => playMedia(VIDEO)}
+                                onDoubleClick={() => {
+                                    const media: any = { title: r.t, dur: r.d, kind: r.f, sub: '' }
+                                    playMedia(media)
+                                }}
                                 onContextMenu={e => openCtx(e, r)}
                                 tabIndex={0}
                                 onKeyDown={e => {
@@ -139,8 +138,7 @@ export default function Library() {
                             >
                                 <td className="px-3 py-2.5 border-b border-border">
                                     <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border
-                flex items-center justify-center text-text-3 shrink-0">
+                                        <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border flex items-center justify-center text-text-3 shrink-0">
                                             <Icon name={r.f === 'FLAC' || r.f === 'WAV' ? 'music' : 'film'} size={15} />
                                         </div>
                                         <div className="min-w-0">

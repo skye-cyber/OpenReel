@@ -21,8 +21,7 @@ export function Sidebar() {
             <div className="flex-1 overflow-y-auto p-3 px-2.5">
                 {NAV.map(({ group, items }) => (
                     <div key={group}>
-                        <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 px-2.5 pt-3.5 pb-1.5
-            first:pt-0.5">{group}</div>
+                        <div className="nav-item text-[10px] font-bold tracking-[.09em] uppercase text-text-3 px-2.5 pt-3.5 pb-1.5 first:pt-0.5">{group}</div>
                         {items.map(it => (
                             <button
                                 key={it.id}

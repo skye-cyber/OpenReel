@@ -76,13 +76,10 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             <div
                 id="openreel-stage"
                 onContextMenu={e => openCtx(e, undefined)}
-                className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border border-border
-        shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col
-        [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0"
+                className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border border-border shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0"
             >
                 <div className="flex-1 relative">
-                    <div className="absolute inset-0 pointer-events-none
-        bg-[radial-gradient(circle_at_50%_44%,rgba(255,255,255,.05),transparent_62%)]" />
+                    <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_44%,rgba(255,255,255,.05),transparent_62%)]" />
 
                     <div className="absolute top-4 left-4.5 z-3 pointer-events-none">
                         <div className="text-[13px] font-semibold text-[#e9ebee]">{media.title}</div>
@@ -94,9 +91,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                             <button
                                 onClick={() => setPlayingAnnounced(true)}
                                 aria-label="Play"
-                                className="w-[74px] h-[74px] rounded-full bg-white/6 border border-white/10
-            flex items-center justify-center text-white/62 backdrop-blur-[2px]
-            transition-transform hover:scale-105 active:scale-95"
+                                className="w-[74px] h-[74px] rounded-full bg-white/6 border border-white/10 flex items-center justify-center text-white/62 backdrop-blur-[2px] transition-transform hover:scale-105 active:scale-95"
                             >
                                 <Icon name="play" size={26} />
                             </button>
@@ -104,11 +99,9 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                     )}
 
                     {playing && !buffering && !offline && (
-                        <div className="absolute left-1/2 bottom-5.5 -translate-x-1/2 z-4 flex items-center gap-2.5
-            px-4 py-2 rounded-[20px] bg-[rgba(12,14,17,.82)] border border-white/10
-            text-[#e9ebee] text-[12px] shadow-md whitespace-nowrap animate-fade-up">
+                        <div className="absolute left-1/2 bottom-5.5 -translate-x-1/2 z-4 flex items-center gap-2.5 px-4 py-2 rounded-[20px] bg-[rgba(12,14,17,.82)] border border-white/10 text-[#e9ebee] text-[12px] shadow-md whitespace-nowrap animate-fade-up">
                             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse-dot" />
-                            <span>Playing · {fmt(pos * media.dur)} / {fmt(media.dur)}</span>
+                            <span>Playing · {fmt(pos * media.dur)} / {fmt(Number(media.dur))}</span>
                         </div>
                     )}
 

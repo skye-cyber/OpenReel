@@ -15,7 +15,7 @@ export function PluginRow({
 
     return (
         <>
-            <div className={`flex items-center gap-3.5 p-[13px_16px] rounded-md border mb-2
+            <div className={`pl-row flex items-center gap-3.5 p-[13px_16px] rounded-md border mb-2
                         transition-[border-color,background] hover:border-border-2 ${borderCls}`}>
                 <div className="w-9 h-9 rounded-md bg-surface-2 border border-border flex items-center justify-center
                         text-text-2 shrink-0">

@@ -94,12 +94,12 @@ export function useKeyboardShortcuts() {
 
                 case 'ArrowLeft':
                     e.preventDefault();
-                    p.seekBy(shift ? -1 : -5);
+                    p.seekBy(shift ? -1 : -p.settings.coarseSeekStep);
                     return;
 
                 case 'ArrowRight':
                     e.preventDefault();
-                    p.seekBy(shift ? 1 : 5);
+                    p.seekBy(shift ? 1 : p.settings.coarseSeekStep);
                     return;
 
                 case 'ArrowUp':
