@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import Icon from "../../lib/Icons";
 import { Button } from "../Button";
-import { usePlayer } from "../../state/PlayerContext";
+import { usePlayer } from "../../hooks/player";
 import { IconButton } from "../Button";
 import { Field } from "../Field";
 import { PluginRow } from "./Row";
 import { EmptyState } from "./Empty";
+import { Available } from "./Available";
 
 type Filter = 'all' | 'enabled' | 'disabled' | 'attention';
 
@@ -166,14 +167,7 @@ export function PluginsList() {
             )}
 
             <div className="mt-5.5">
-                <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 mb-2.5">
-                    Available · 0 sources configured
-                </div>
-                <div className="flex items-center gap-3 rounded-md p-[10px_14px] text-[12px] leading-relaxed bg-surface-2 border border-border text-text-2">
-                    <Icon name="external" size={16} className="text-text-3" />
-                    <div className="flex-1">No plugin repositories are configured. Add one to browse available plugins.</div>
-                    <Button size="sm">Add repository…</Button>
-                </div>
+                <Available query={q} />
             </div>
         </div>
     );

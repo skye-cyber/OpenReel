@@ -1,6 +1,6 @@
 import Icon from "../../lib/Icons";
 import { useMemo } from "react";
-import { usePlayer } from "../../state/PlayerContext";
+import { usePlayer } from "../../hooks/player";
 import type { Plugin } from "../../types";
 
 export function ConflictPanel({

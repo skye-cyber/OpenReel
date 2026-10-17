@@ -3,6 +3,8 @@ import Icon from "../../lib/Icons";
 import { Chip } from "../Chip";
 import { Switch } from "../Switch";
 import { IconButton } from "../Button";
+import { Button } from "../Button";
+import type { AvailableEntry } from "../../types/plugins";
 
 
 export function PluginRow({
@@ -68,5 +70,66 @@ export function PluginRow({
                 </div>
             )}
         </>
+    );
+}
+
+export function AvailableRow({
+    entry, onInstall,
+}: { entry: AvailableEntry; onInstall: () => void }) {
+    const incompatible = !entry.compatibility.ok;
+
+    return (
+        <div className={`flex items-center gap-3.5 p-[13px_16px] rounded-md border mb-2
+            transition-[border-color,background] hover:border-border-2
+            ${entry.installed
+                ? 'bg-surface border-border'
+                : incompatible
+                    ? 'bg-surface-2 border-border'
+                    : 'bg-surface border-border'}`}>
+            <div className="w-9 h-9 rounded-md bg-surface-2 border border-border flex items-center justify-center text-text-2 shrink-0">
+                <Icon name="download" size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="text-[12.5px] font-[620] flex items-center gap-2.5 flex-wrap">
+                    {entry.name}
+                    <span className="chip-base" style={{ height: 18, fontSize: 10 }}>{entry.category}</span>
+                    {entry.installed && (
+                        <span className="chip-base text-success border-transparent bg-success-dim"
+                            style={{ height: 18, fontSize: 10 }}>
+                            Installed{entry.installedVersion ? ` · v${entry.installedVersion}` : ''}
+                        </span>
+                    )}
+                    {!entry.installed && incompatible && (
+                        <span className="chip-base text-warning border-transparent bg-warning-dim"
+                            style={{ height: 18, fontSize: 10 }}>
+                            Incompatible
+                        </span>
+                    )}
+                    {!entry.signed && !entry.installed && (
+                        <span className="chip-base text-warning border-transparent bg-warning-dim"
+                            style={{ height: 18, fontSize: 10 }}>
+                            Not signed
+                        </span>
+                    )}
+                </div>
+                <div className="text-[11.5px] text-text-3 mt-0.5 truncate">
+                    {entry.provider} · v{entry.version} · {entry.description}
+                </div>
+                {incompatible && entry.compatibility.reason && (
+                    <div className="text-[11px] text-warning mt-1">{entry.compatibility.reason}</div>
+                )}
+            </div>
+            <div className="shrink-0">
+                {entry.installed ? (
+                    <Button size="sm" disabled>Installed</Button>
+                ) : incompatible ? (
+                    <Button size="sm" disabled>Can't install</Button>
+                ) : (
+                    <Button size="sm" variant="primary" onClick={onInstall}>
+                        Install
+                    </Button>
+                )}
+            </div>
+        </div>
     );
 }

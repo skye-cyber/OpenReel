@@ -1,5 +1,5 @@
 import { Chip } from '../components/Chip';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from "../hooks/player";
 import type { AudioMedia } from '../types';
 import { WAVE } from '../lib/format';
 import { fmt } from '../lib/format';

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { usePlayer } from './PlayerContext';
+import { usePlayer } from '../hooks/player';
 
 /**
  * Global keyboard shortcut handler for OpenReel.
@@ -65,6 +65,12 @@ export function useKeyboardShortcuts() {
                 return;
             }
 
+            if (mod && shift && e.key.toLowerCase() === 'o') {
+                e.preventDefault();
+                p.setUrlDialogOpen(true);
+                return;
+            }
+
             /* ---------- View shortcuts ---------- */
             if (mod && !shift && !e.altKey) {
                 switch (e.key) {
@@ -118,6 +124,15 @@ export function useKeyboardShortcuts() {
                     return;
 
                 case 'f': case 'F':
+                    if (e.key == 'f' && (!p.hasMedia && p.modal == null && p.confirmUninstallId == null && !p.mediaInfoOpen)) {
+                        e.preventDefault();
+                        const el = document.querySelector<HTMLInputElement>('[data-search-field]');
+                        if (el) {
+                            el.focus();
+                            el.select();
+                        }
+                        return;
+                    }
                     p.toggleFullscreen();
                     return;
 
@@ -171,6 +186,10 @@ export function useKeyboardShortcuts() {
                 case 'Backspace':
                     p.setSpeedAnnounced(1);
                     p.toast('Speed reset to 1×');
+                    return;
+
+                case 'i': case 'I':
+                    if (p.hasMedia) p.setMediaInfoOpen(!p.mediaInfoOpen);
                     return;
             }
         };

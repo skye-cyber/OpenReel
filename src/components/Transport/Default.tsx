@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import Icon from '../../lib/Icons';
-import { usePlayer } from '../../state/PlayerContext';
+import { usePlayer } from '../../hooks/player';
 import { Bar } from './Bar';
 import { IconButton } from '../Button';
 import { Menu, MenuHead, MenuItem, MenuSep } from '../Menu';
 import { fmt } from '../../lib/format';
 import { AdvancedRow } from '../Transport/Row';
+import { Pill } from './Pill';
 
 type OpenMenu = 'speed' | 'audio' | 'subs' | null;
 
@@ -43,10 +44,7 @@ export function Transport() {
                         disabled={!p.hasMedia}
                         onClick={() => p.setPlayingAnnounced(!p.playing)}
                         aria-label={p.playing ? 'Pause' : 'Play'}
-                        className="w-10 h-10 rounded-full bg-accent text-[#1a0f08] flex items-center justify-center mx-1.5
-        transition-[background,transform] shadow-[0_2px_12px_rgba(232,135,90,.28)]
-        hover:bg-accent-hi active:scale-[.94]
-        disabled:bg-surface-3 disabled:text-text-3 disabled:shadow-none disabled:pointer-events-none"
+                        className="w-10 h-10 rounded-full bg-accent text-[#1a0f08] flex items-center justify-center mx-1.5 transition-[background,transform] shadow-[0_2px_12px_rgba(232,135,90,.28)] hover:bg-accent-hi active:scale-[.94] disabled:bg-surface-3 disabled:text-text-3 disabled:shadow-none disabled:pointer-events-none"
                     >
                         <Icon name={p.playing ? 'pause' : 'play'} size={19} />
                     </button>
@@ -79,8 +77,7 @@ export function Transport() {
                         <button
                             type="button"
                             onClick={() => toggle('speed')}
-                            className="h-7 px-2.5 rounded-sm border border-border-2 bg-surface text-[11.5px] text-text-2
-        transition-colors hover:bg-hover hover:text-text hover:border-border-3"
+                            className="h-7 px-2.5 rounded-sm border border-border-2 bg-surface text-[11.5px] text-text-2 transition-colors hover:bg-hover hover:text-text hover:border-border-3"
                         >
                             {p.speed === 1 ? '1×' : p.speed + '×'}
                         </button>
@@ -182,6 +179,11 @@ export function Transport() {
                         active={p.advanced}
                         title="More controls"
                         onClick={() => p.setAdvanced(!p.advanced)}
+                    />
+                    <Pill
+                        label="Media info"
+                        onClick={() => p.setMediaInfoOpen(!p.mediaInfoOpen)}
+                        active={p.mediaInfoOpen}
                     />
                 </div>
             </div>

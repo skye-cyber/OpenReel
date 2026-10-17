@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
 import { Seg } from '../components/Segment';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from "../hooks/player";
 import type { ThemePref } from '../types';
 
 type Probe = null | 'run' | 'ok';

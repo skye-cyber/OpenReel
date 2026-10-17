@@ -1,5 +1,5 @@
 import { PluginsList } from "../components/Plugins/PluginList";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import { PluginDetail } from "../components/Plugins/Details";
 
 export default function Plugins() {

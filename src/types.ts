@@ -15,6 +15,8 @@ export type MediaKind = 'video' | 'audio' | 'error';
 
 export interface VideoMedia {
   kind: 'video';
+  id: string;
+  url: string;
   title: string;
   sub: string;
   dur: number;
@@ -23,6 +25,8 @@ export interface VideoMedia {
 
 export interface AudioMedia {
   kind: 'audio';
+  id: string;
+  url: string;
   title: string;
   artist: string;
   album: string;
@@ -33,8 +37,35 @@ export interface AudioMedia {
 
 export interface ErrorMedia {
   kind: 'error';
+  id: string;
   title: string;
   dur: number;
+  reason: ErrorReason;
+  detail?: string;
+  pluginName?: string;
+  codec: string;
+}
+
+export type ErrorReason =
+| 'unsupported-codec'
+| 'file-missing'
+| 'permission-denied'
+| 'corrupt-file'
+| 'no-audio-device'
+| 'video-output-failure'
+| 'plugin-crashed';
+
+export interface ErrorMedia {
+  kind: 'error';
+  id: string;
+  title: string;
+  dur: number;
+  reason: ErrorReason;
+  /** Free-form detail — codec name, plugin id, OS error string. */
+  detail?: string;
+  /** When reason is 'plugin-crashed', names the plugin. */
+  pluginName?: string;
+  /** The underlying codec/container line, shown as monospace. */
   codec: string;
 }
 
@@ -163,4 +194,18 @@ export interface Plugin {
   size?: string;
   /** Plugin API version the plugin targets. */
   apiVersion?: string;
+}
+
+export interface ScanState {
+  inProgress: boolean;
+  itemsFound: number;
+  itemsExpected: number;
+  currentFolder: string;
+  startedAt: number;
+}
+
+export interface LibraryMeta {
+  folders: number;
+  itemCount: number;
+  lastScanAt: number | null;
 }

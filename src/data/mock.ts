@@ -1,19 +1,22 @@
 import type {
     AudioMedia, ErrorMedia, LibraryRow, OpenFileRow, Plugin,
-    QueueItem, RecentItem, Scene, VideoMedia, PluginPermissionId,
-    PluginPermission
+    QueueItem, RecentItem, VideoMedia
 } from '../types';
 
 export const VIDEO: VideoMedia = {
     kind: 'video',
-    title: 'lecture-04.mkv',
-    sub: 'Chapter 3 · Encoding',
-    dur: 2911,
-    codec: 'MKV · H.264 · AC-3 5.1 · 1080p',
+    id: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4',
+    url: '/media/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4',
+    title: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4',
+    sub: 'Faouzia - Birthday Music Video',
+    dur: 0,          // real duration comes from durationchange
+    codec: 'Container MP4 · Video VC-1 · Audio AC-3 · 45.5 MB',
 };
 
 export const AUDIO: AudioMedia = {
     kind: 'audio',
+    id: 'field-recording-07',
+    url: '/media/Empty Bed.mp3',
     title: 'Field Recording No. 7',
     artist: 'Anna Selv',
     album: 'Coastal Studies',
@@ -24,12 +27,72 @@ export const AUDIO: AudioMedia = {
 
 export const ERROR_MEDIA: ErrorMedia = {
     kind: 'error',
+    id: '~/Videos/Archive/archive-old.mkv',
     title: 'archive-old.mkv',
     dur: 0,
+    reason: 'unsupported-codec',
+    detail: 'vc1',
     codec: 'Container MKV · Video VC-1 · Audio AC-3 · 1.2 GB',
 };
 
+export const ERROR_MISSING: ErrorMedia = {
+    kind: 'error',
+    id: '~/Videos/Old/gone.mkv',
+    title: 'gone.mkv',
+    dur: 0,
+    reason: 'file-missing',
+    codec: '',
+};
+
+export const ERROR_PERMISSION: ErrorMedia = {
+    kind: 'error',
+    id: '/root/private.mkv',
+    title: 'private.mkv',
+    dur: 0,
+    reason: 'permission-denied',
+    detail: 'EACCES',
+    codec: '',
+};
+
+export const ERROR_CORRUPT: ErrorMedia = {
+    kind: 'error',
+    id: '~/Videos/partial.mkv',
+    title: 'partial.mkv',
+    dur: 0,
+    reason: 'corrupt-file',
+    codec: 'Matroska — truncated at 42%',
+};
+
+export const ERROR_NO_AUDIO: ErrorMedia = {
+    kind: 'error',
+    id: 'no-audio-device',
+    title: 'Audio output',
+    dur: 0,
+    reason: 'no-audio-device',
+    codec: '',
+};
+
+export const ERROR_VIDEO_OUT: ErrorMedia = {
+    kind: 'error',
+    id: 'video-output-failure',
+    title: 'Video output',
+    dur: 0,
+    reason: 'video-output-failure',
+    codec: '',
+};
+
+export const ERROR_PLUGIN: ErrorMedia = {
+    kind: 'error',
+    id: 'plugin-crashed:subtitle',
+    title: 'Plugin failure',
+    dur: 0,
+    reason: 'plugin-crashed',
+    pluginName: 'subtitle',   // plugin id, not display name
+    codec: 'missing symbol libsubtitle_init',
+};
+
 export const RECENTS: RecentItem[] = [
+    { n: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', p: '~/Videos/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—', k: 'video' },
     { n: 'lecture-04.mkv', p: '~/Videos/Course', d: '48:31', k: 'video' },
     { n: 'field-recording-07.flac', p: '~/Music/Coastal Studies', d: '12:48', k: 'audio' },
     { n: 'seminar-02.mkv', p: '~/Videos/Course', d: '31:07', k: 'video' },
@@ -37,6 +100,7 @@ export const RECENTS: RecentItem[] = [
 ];
 
 export const OPEN_FILES: OpenFileRow[] = [
+    { n: 'Screencast_20260920_150034.webm', p: 'Screencasts', t: 'WebM', s: '—', m: '20 Sep 2026', d: '—', k: 'video' },
     { n: 'lecture-04.mkv', p: 'Course / Week 3', t: 'Matroska', s: '1.24 GB', m: '2 Sep 2026', d: '48:31', k: 'video' },
     { n: 'seminar-02.mkv', p: 'Course / Week 3', t: 'Matroska', s: '812 MB', m: '2 Sep 2026', d: '31:07', k: 'video' },
     { n: 'workshop-audio.wav', p: 'Course / Week 3', t: 'WAVE', s: '204 MB', m: '1 Sep 2026', d: '18:02', k: 'audio' },
@@ -45,6 +109,7 @@ export const OPEN_FILES: OpenFileRow[] = [
 ];
 
 export const LIBRARY: LibraryRow[] = [
+    { t: 'Screencast — 20 Sep 2026', p: '/media/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—', f: 'WEBM', a: '20 Sep 2026', pl: 0 },
     { t: 'Lecture 04 — Encoding Theory', p: '~/Videos/Course/lecture-04.mkv', d: '48:31', f: 'MKV', a: '2 Sep 2026', pl: 12 },
     { t: 'Seminar 02 — Colour Spaces', p: '~/Videos/Course/seminar-02.mkv', d: '31:07', f: 'MKV', a: '2 Sep 2026', pl: 9 },
     { t: 'Interview — draft cut', p: '~/Desktop/interview-draft.mp4', d: '22:15', f: 'MP4', a: '30 Aug 2026', pl: 3 },
@@ -56,6 +121,7 @@ export const LIBRARY: LibraryRow[] = [
 ];
 
 export const QUEUE: QueueItem[] = [
+    { n: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—' },
     { n: 'lecture-04.mkv', d: '48:31', on: true },
     { n: 'seminar-02.mkv', d: '31:07' },
     { n: 'interview-draft.mp4', d: '22:15' },
@@ -194,65 +260,3 @@ export const PLUGINS: Plugin[] = [
     },
 ];
 
-/**
- * Permission vocabulary — shared between the install confirmation and the
- * installed-plugin detail view. The "grant" text is used at install time
- * ("will be able to"); the "held" text is used afterwards ("can").
- */
-export const PLUGIN_PERMISSIONS: Record<PluginPermissionId, PluginPermission> = {
-    network: {
-        id: 'network',
-        grant: 'Connect to the internet',
-        held: 'Can connect to the internet',
-        risk: 'High',
-    },
-    'read-media': {
-        id: 'read-media',
-        grant: 'Read the media files you open',
-        held: 'Can read the media files you open',
-        risk: 'Medium',
-    },
-    'write-config': {
-        id: 'write-config',
-        grant: 'Store its own settings',
-        held: 'Can store its own settings',
-        risk: 'Low',
-    },
-    spawn: {
-        id: 'spawn',
-        grant: 'Run other programs on your computer',
-        held: 'Can run other programs on your computer',
-        risk: 'High',
-    },
-    'audio-output': {
-        id: 'audio-output',
-        grant: 'Read the audio stream while it plays',
-        held: 'Can read the audio stream while it plays',
-        risk: 'Medium',
-    },
-    'draw-overlay': {
-        id: 'draw-overlay',
-        grant: 'Draw its own graphics on top of the video surface',
-        held: 'Can draw on top of the video surface',
-        risk: 'Medium',
-    },
-};
-
-export const SCENES: Scene[] = [
-    { id: 'welcome', l: '1 · Welcome' },
-    { id: 'empty', l: '2 · Nothing playing' },
-    { id: 'open', l: '3 · Open file' },
-    { id: 'video', l: '4 · Video playback' },
-    { id: 'audio', l: '5 · Audio playback' },
-    { id: 'tracks', l: '6 · Track menus' },
-    { id: 'queue', l: '7 · Queue panel' },
-    { id: 'library', l: '8 · Media library' },
-    { id: 'settings', l: '9 · Settings' },
-    { id: 'plugins', l: '10 · Plugin manager' },
-    { id: 'install', l: '11 · Plugin install' },
-    { id: 'error', l: '12 · Unsupported media' },
-    { id: 'shortcuts', l: '13 · Shortcuts' },
-    { id: 'about', l: '14 · About & diagnostics' },
-    { id: 'loading', l: '15 · Loading / buffering' },
-    { id: 'offline', l: '16 · Offline stream' },
-];

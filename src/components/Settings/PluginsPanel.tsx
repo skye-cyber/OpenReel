@@ -1,7 +1,7 @@
 import { Group, Row } from './Shared';
 import { Button } from '../Button';
 import { Switch } from '../Switch';
-import { usePlayer } from '../../state/PlayerContext';
+import { usePlayer } from "../../hooks/player";
 
 export function PluginsPanel() {
     const { settings, setSetting, isChanged, resetSetting, toast } = usePlayer();
@@ -26,7 +26,11 @@ export function PluginsPanel() {
                 title="Check for updates automatically"
                 changed={isChanged('pluginUpdateChecks')}
                 onReset={() => resetSetting('pluginUpdateChecks')}
-                desc="Queries configured repositories at most once per day."
+                desc={
+                    settings.pluginNetwork
+                        ? 'Queries configured repositories at most once per day.'
+                        : 'Requires network access. Enable it in Privacy.'
+                }
                 control={
                     <Switch
                         on={settings.pluginUpdateChecks}

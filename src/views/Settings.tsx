@@ -3,7 +3,7 @@ import { Field } from '../components/Field';
 import { SideNav } from '../components/Settings/Sidenav';
 import { SearchResults } from '../components/Settings/SearchResults';
 import { Panel } from '../components/Settings/Panel';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from "../hooks/player";
 
 export default function Settings() {
     const { settingCat: cat, setSettingCat: setCat } = usePlayer();

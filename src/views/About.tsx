@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from "../hooks/player";
 
 type Tab = 'about' | 'diag' | 'feed';
 

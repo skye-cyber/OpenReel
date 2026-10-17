@@ -1,4 +1,4 @@
-import { usePlayer } from "../../state/PlayerContext";
+import { usePlayer } from "../../hooks/player";
 import { Pill } from "./Pill";
 
 export function AdvancedRow() {

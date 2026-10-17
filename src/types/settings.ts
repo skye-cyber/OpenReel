@@ -27,6 +27,16 @@ export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 export type SeekStep = 5 | 10 | 30;
 export type ResumeThreshold = 5 | 30 | 120;
 
+export interface SubtitleStyle {
+    fontFamily: string;             // reserved for future use; 'system' for now
+    fontSize: number;               // px
+    fontWeight: 'regular' | 'medium' | 'bold';
+    color: 'white' | 'yellow' | 'cyan' | 'green' | 'magenta' | 'red' | 'black';
+    outline: 'none' | 'thin' | 'medium' | 'thick';
+    background: 'none' | 'subtle' | 'solid';
+    positionFromBottom: number;     // percentage of viewport height
+}
+
 /* ============================================================
  *  Settings shape
  *  ============================================================ */
@@ -43,6 +53,10 @@ export interface Settings {
     deinterlace: Deint;
     defaultAspect: Aspect;
     snapshotFormat: Snap;
+
+    /* Subtitles — new */
+    useSystemCaptionStyle: boolean;
+    subtitleStyle: SubtitleStyle;
 
     /* Appearance */
     density: Density;
@@ -77,6 +91,17 @@ export const DEFAULT_SETTINGS: Settings = {
     defaultAspect: 'fit',
     snapshotFormat: 'jpeg',
 
+    useSystemCaptionStyle: true,
+    subtitleStyle: {
+        fontFamily: 'system',
+        fontSize: 18,
+        fontWeight: 'medium',
+        color: 'white',
+        outline: 'medium',
+        background: 'subtle',
+        positionFromBottom: 8,
+    },
+
     density: 'comfortable',
     reducedMotion: 'system',
     showStatusStrip: true,
@@ -92,7 +117,6 @@ export const DEFAULT_SETTINGS: Settings = {
     updateCheck: true,
     pluginNetwork: true,
 };
-
 export type SettingKey = keyof Settings;
 
 /* ============================================================

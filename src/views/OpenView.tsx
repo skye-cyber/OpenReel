@@ -3,8 +3,9 @@ import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { Seg } from '../components/Segment';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from "../hooks/player";
 import { OPEN_FILES, VIDEO } from '../data/mock';
+import { mediaFromOpenFile } from '../helpers/herpers';
 
 type Filter = 'media' | 'all';
 
@@ -76,9 +77,8 @@ export default function OpenView() {
                                     <tr
                                         key={`${r.n}-${i}`}
                                         onClick={() => setSel(i)}
-                                        onDoubleClick={() => r.k !== 'file' && playMedia(VIDEO)}
-                                        className={`transition-colors ${r.k !== 'file' ? 'cursor-pointer' : 'cursor-default'}
-                ${i === safeSel ? 'bg-accent-soft' : 'hover:bg-surface'}`}
+                                        onDoubleClick={() => r.k !== 'file' && playMedia(mediaFromOpenFile(r))}
+                                        className={`transition-colors ${r.k !== 'file' ? 'cursor-pointer' : 'cursor-default'} ${i === safeSel ? 'bg-accent-soft' : 'hover:bg-surface'}`}
                                     >
                                         <td className="px-3 py-2.5 border-b border-border">
                                             <div className="flex items-center gap-2.5 min-w-0">
@@ -129,7 +129,7 @@ export default function OpenView() {
                             />
 
                             {f.k !== 'file' ? (
-                                <Button variant="primary" icon="play" onClick={() => playMedia(VIDEO)} className="w-full mt-5">
+                                <Button variant="primary" icon="play" onClick={() => playMedia(mediaFromOpenFile(f))} className="w-full mt-5">
                                     Open
                                 </Button>
                             ) : (

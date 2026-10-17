@@ -1,6 +1,6 @@
 import { Group, Row } from './Shared';
 import { Switch } from '../Switch';
-import { usePlayer } from '../../state/PlayerContext';
+import { usePlayer } from "../../hooks/player";
 
 export function PrivacyPanel() {
     const { settings, setSetting, isChanged, resetSetting } = usePlayer();
@@ -12,7 +12,7 @@ export function PrivacyPanel() {
                 title="Check for application updates"
                 changed={isChanged('updateCheck')}
                 onReset={() => resetSetting('updateCheck')}
-                desc="Contacts the release server at most once per day. No identifier is sent."
+                desc="Contacts the release server at most once per day. Not yet active — the update mechanism arrives with the desktop integration."
                 control={
                     <Switch
                         on={settings.updateCheck}
@@ -25,7 +25,7 @@ export function PrivacyPanel() {
                 title="Allow plugins to use the network"
                 changed={isChanged('pluginNetwork')}
                 onReset={() => resetSetting('pluginNetwork')}
-                desc="Individual plugins still declare their own network permission. Turning this off overrides all of them."
+                desc="Individual plugins still declare their own network permission. Turning this off overrides all of them, including fetches from plugin repositories."
                 control={
                     <Switch
                         on={settings.pluginNetwork}

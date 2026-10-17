@@ -1,13 +1,19 @@
 import {
-    createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+    createContext, useCallback, useEffect, useMemo, useRef, useState,
     type ReactNode,
 } from 'react';
+import {
+    fetchRepository,
+} from '../lib/platform/plugins';
+import type { AvailableEntry, Repository, RepositoryCatalog } from '../types/plugins';
 import type {
     Media, ModalId, Theme, ThemePref, ViewId, Toast, ToastKind, QueueItem,
     PluginActivity,
-    Plugin
+    Plugin,
+    ScanState,
+    LibraryMeta
 } from '../types';
-import { AUDIO, ERROR_MEDIA, VIDEO, QUEUE as QUEUE_SEED, PLUGINS } from '../data/mock';
+import { AUDIO, ERROR_MEDIA, VIDEO, QUEUE as QUEUE_SEED, PLUGINS, ERROR_MISSING, ERROR_PERMISSION, ERROR_CORRUPT, ERROR_NO_AUDIO, ERROR_VIDEO_OUT, ERROR_PLUGIN } from '../data/mock';
 import { fmt } from '../lib/format';
 import { loadPrefs, savePrefs } from './persist';
 import {
@@ -17,117 +23,21 @@ import {
     type Settings,
 } from '../types/settings';
 import { Session } from '../lib/platform/session';
+import type { PlayerState } from '../types/player';
+import { mediaFromQueueItem } from '../helpers/herpers';
+import { getMediaInfo } from '../helpers/media';
+import {
+    DEFAULT_FOLDERS,
+    isWatchAvailable,
+    scanAll,
+    scanOne,
+    type Folder,
+    type ScanProgress,
+    type ScanResult,
+} from '../lib/platform/library';
+import { pickFolder, labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
 
-interface PlayerState {
-    theme: Theme;
-    themePref: ThemePref;
-    setThemePref: (t: ThemePref) => void;
-
-    view: ViewId;
-    setView: (v: ViewId) => void;
-
-    media: Media | null;
-    playMedia: (m: Media) => void;
-    setMedia: (m: Media | null) => void;
-    hasMedia: boolean;
-
-    playing: boolean;
-    setPlaying: (p: boolean) => void;
-
-    pos: number;
-    setPos: (n: number) => void;
-
-    vol: number;
-    setVol: (n: number) => void;
-    muted: boolean;
-    setMuted: (b: boolean) => void;
-
-    speed: number;
-    setSpeed: (n: number) => void;
-
-    audioTrack: number;
-    setAudioTrack: (n: number) => void;
-    subTrack: number;
-    setSubTrack: (n: number) => void;
-
-    queue: QueueItem[];
-    queueIndex: number;
-    playQueueItem: (i: number) => void;
-    nextItem: () => void;
-    prevItem: () => void;
-
-    queueOpen: boolean;
-    setQueueOpen: (b: boolean) => void;
-
-    advanced: boolean;
-    setAdvanced: (b: boolean) => void;
-
-    buffering: boolean;
-    setBuffering: (b: boolean) => void;
-    offline: boolean;
-    setOffline: (b: boolean) => void;
-
-    modal: ModalId;
-    setModal: (m: ModalId) => void;
-
-    toasts: Toast[];
-    toast: (msg: string, kind?: ToastKind) => void;
-    dismissToast: (id: string) => void;
-
-    scene: string;
-    applyScene: (id: string) => void;
-
-    seekBy: (deltaSeconds: number) => void;
-
-    takeSnapshot: () => void;
-
-    fullscreen: boolean;
-    toggleFullscreen: () => void;
-    setFullscreen: (v: boolean) => void;
-
-    pushEscapeHandler: (id: string, handler: () => void) => void;
-    popEscapeHandler: (id: string) => void;
-    runTopEscape: () => boolean;
-
-    selectedPluginId: string | null;
-    selectPlugin: (id: string | null) => void;
-
-    plugins: Plugin[];
-    setPluginEnabled: (id: string, on: boolean) => void;
-    uninstallPlugin: (id: string) => void;
-    resolveConflict: (winnerId: string, loserId: string) => void;
-
-    confirmUninstallId: string | null;
-    setConfirmUninstallId: (id: string | null) => void;
-
-    reducedMotion: boolean;
-
-    aboutTab: 'about' | 'diag' | 'feed';
-    setAboutTab: (a: 'about' | 'diag' | 'feed') => void;
-
-    buffered: number;
-    seekTo: (n: number) => void;
-
-    // Anouncements
-    setPlayingAnnounced: (p: boolean) => void;
-    setMutedAnnounced: (m: boolean) => void;
-    setSpeedAnnounced: (s: number) => void;
-    setAudioTrackAnnounced: (n: number) => void;
-    setSubTrackAnnounced: (n: number) => void;
-    liveMessage: string;
-    setLiveMessage: (ms: string) => void;
-
-    settings: Settings;
-    setSetting: <K extends SettingKey>(key: K, value: Settings[K]) => void;
-    isChanged: <K extends SettingKey>(key: K) => boolean;
-    resetSetting: <K extends SettingKey>(key: K) => void;
-    resetAllSettings: () => void;
-
-    settingCat: Cat;
-    setSettingCat: (cat: Cat) => void;
-}
-
-const PlayerCtx = createContext<PlayerState | null>(null);
+export const PlayerCtx = createContext<PlayerState | null>(null);
 
 function prependActivity(p: Plugin, level: PluginActivity['level'], msg: string): PluginActivity[] {
     const now = new Date();
@@ -139,7 +49,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const [settingCat, setSettingCat] = useState<Cat>('video');
     const [view, setView] = useState<ViewId>('now');
     const [media, setMedia] = useState<Media | null>(null);
-    const [playing, setPlaying] = useState(false);
+    const [playing, _setPlaying] = useState(false);
     const [pos, setPos] = useState(0);
     const [audioTrack, setAudioTrack] = useState(0);
     const [subTrack, setSubTrack] = useState(-1);
@@ -154,12 +64,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const [scene, setScene] = useState('empty');
     const [fullscreen, setFullscreen] = useState(false);
     const escapeStackRef = useRef<Array<{ id: string; handler: () => void }>>([]);
-
+    const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+    const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
     const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
     const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(null);
     const [prefs] = useState(loadPrefs);  // loads once, never updated
     // A ref to track the current save-loop so we can clear it:
     const saveLoopRef = useRef<number | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    // Plugin Repository handling states
+    const [repositories, setRepositories] = useState<Repository[]>(prefs.repositories || []);
+    const [catalogs, setCatalogs] = useState<RepositoryCatalog[]>([]);
+    const [repositoriesLoading, setRepositoriesLoading] = useState(false);
+    const [repositoryError, setRepositoryError] = useState<string | null>(null);
+
+    // Scanning
+    const [scan, setScan] = useState<ScanState | null>(null);
+    // Read from prefs, falling back to computed defaults if empty:
+    const [libraryMeta, setLibraryMeta] = useState<LibraryMeta>(() => {
+        if (prefs.libraryMeta.folders > 0 || prefs.libraryMeta.lastScanAt !== null) {
+            return prefs.libraryMeta;
+        }
+        return {
+            folders: DEFAULT_FOLDERS.length,
+            itemCount: 0,
+            lastScanAt: null,
+        };
+    });
+    // if persisted, use them; otherwise seed from DEFAULT_FOLDERS
+    const [folders, setFolders] = useState<Folder[]>(() => {
+        if (prefs.libraryFolders.length > 0) {
+            return prefs.libraryFolders;
+        }
+        return DEFAULT_FOLDERS;
+    });
+    const cancelRef = useRef<() => void>(() => { });
 
     /*
         The .map() filter is necessary. If a plugin was uninstalled in a previous session, its key is still in the persisted map. The map from PLUGINS (which is the source of installed plugins) skips unknown ids.
@@ -171,22 +110,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             .filter(p => !uninstalled.has(p.id))
             .map(p => (p.id in persisted ? { ...p, on: persisted[p.id]! } : p));
     });
-    //     const [plugins, setPlugins] = useState<Plugin[]>(() => {
-    //         const persisted = prefs.plugins;
-    //         if (!persisted || Object.keys(persisted).length === 0) return PLUGINS;
-    //         return PLUGINS.map(p =>
-    //             p.id in persisted ? { ...p, on: persisted[p.id]! } : p
-    //         );
-    //     });
+
     const [settings, setSettings] = useState<Settings>(() => ({
         ...DEFAULT_SETTINGS,
         ...prefs.settings,
     }));
     const [aboutTab, setAboutTab] = useState<'about' | 'diag' | 'feed'>('about');
     const [themePref, setThemePref] = useState<ThemePref>(prefs.themePref);
-    const [vol, setVol] = useState(prefs.vol || 0.72);
-    const [muted, setMuted] = useState(prefs.muted || false);
-    const [speed, setSpeed] = useState(prefs.speed || 1);
+    const [vol, _setVol] = useState(prefs.vol || 0.72);
+    const [muted, _setMuted] = useState(prefs.muted || false);
+    const [speed, _setSpeed] = useState(prefs.speed || 1);
     const [buffered, setBuffered] = useState(0);
     const [liveMessage, setLiveMessage] = useState('');
     const [systemDark, setSystemDark] = useState<boolean>(() => {
@@ -224,6 +157,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setSettings(DEFAULT_SETTINGS);
     }, []);
 
+    const updateMediaDuration = useCallback((seconds: number) => {
+        setMedia(m => m ? { ...m, dur: seconds } : m);
+    }, []);
+
+    useEffect(() => {
+        if (libraryMeta.lastScanAt !== null) return;
+        const t = setTimeout(() => { void startScan(); }, 400);
+        return () => clearTimeout(t);
+        // Intentionally run once. `startScan` is called once and captured.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useEffect(() => {
         if (typeof window === 'undefined' || !window.matchMedia) return;
         const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -237,7 +182,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         document.documentElement.setAttribute('data-motion', reducedMotion ? 'reduced' : 'normal');
     }, [reducedMotion]);
 
-    // Persist
+    // Persist effect
     useEffect(() => {
         const t = setTimeout(() => {
             const pluginState: Record<string, boolean> = {};
@@ -247,11 +192,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 themePref, vol, muted, speed,
                 plugins: pluginState,
                 settings,
+                libraryMeta,
+                libraryFolders: folders.map(f => ({
+                    id: f.id,
+                    label: f.label,
+                    path: f.path,
+                    itemCount: f.itemCount,
+                })),
+                repositories,
             });
         }, 300);
         return () => clearTimeout(t);
-    }, [themePref, vol, muted, speed, plugins, settings]);
-
+    }, [
+        themePref, vol, muted, speed,
+        plugins, settings,
+        libraryMeta, folders, repositories,
+    ]);
     const announce = useCallback((msg: string) => {
         setLiveMessage(msg);
         // Clear after a moment so the same message can fire again.
@@ -381,33 +337,78 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const LOOKAHEAD = 0.15;
 
-    // Playback tick: advances pos and buffered together.
-    useEffect(() => {
-        if (!playing || !hasMedia || buffering || offline) return;
-        const t = setInterval(() => {
-            setPos(p => {
-                const next = p >= 0.999 ? 0 : p + 0.0018;
-                if (next < p) {
-                    // Wrapped to the start.
-                    setBuffered(0);
-                }
-                return next;
-            });
-        }, 60);
-        return () => clearInterval(t);
-    }, [playing, hasMedia, buffering, offline]);
-
     // Keep buffered at least pos + LOOKAHEAD, capped at 1.
     // Runs on every pos change, which is fine — it's a cheap Math.max.
     useEffect(() => {
         setBuffered(b => Math.max(b, Math.min(pos + LOOKAHEAD, 1)));
     }, [pos]);
 
+    const setPlaying = useCallback((p: boolean) => {
+        const v = videoRef.current;
+        if (!v) {
+            // No element yet. Update state so the UI reflects intent —
+            // this covers the pre-element window and the audio-only stage.
+            _setPlaying(p);
+            return;
+        }
+        if (p) {
+            // Playback start is asynchronous. If the browser blocks autoplay
+            // (no user gesture yet), the promise rejects and state stays paused.
+            // That's correct — the icon reflects reality, not intent.
+            v.play().catch(() => {
+                _setPlaying(false);
+            });
+        } else {
+            v.pause();
+        }
+    }, []);
+
+    const setSpeed = useCallback((s: number) => {
+        _setSpeed(s);
+        const v = videoRef.current;
+        if (v) v.playbackRate = s;
+    }, []);
+
+    const setVol = useCallback((v: number) => {
+        _setVol(v);
+        const el = videoRef.current;
+        if (el) el.volume = Math.min(Math.max(v, 0), 1);
+    }, []);
+
+    const setMuted = useCallback((m: boolean) => {
+        _setMuted(m);
+        const el = videoRef.current;
+        if (el) el.muted = m;
+    }, []);
+
     const seekTo = useCallback((n: number) => {
         const clamped = Math.min(Math.max(n, 0), 1);
         setPos(clamped);
         setBuffered(clamped);
+        const v = videoRef.current;
+        if (v && Number.isFinite(v.duration) && v.duration > 0) {
+            v.currentTime = clamped * v.duration;
+        }
     }, []);
+
+    //*    Seeking
+    const seekBy = useCallback((deltaSeconds: number) => {
+        const v = videoRef.current;
+        if (v && Number.isFinite(v.duration) && v.duration > 0) {
+            const next = Math.min(Math.max(v.currentTime + deltaSeconds, 0), v.duration);
+            v.currentTime = next;
+            setPos(next / v.duration);
+            setBuffered(next / v.duration);
+            return;
+        }
+        // Fallback for the audio stage and pre-element window.
+        if (!hasMedia || dur === 0) return;
+        setPos(p => {
+            const next = Math.min(Math.max(p + deltaSeconds / dur, 0), 1);
+            setBuffered(next);
+            return next;
+        });
+    }, [hasMedia, dur]);
 
     /* --------------------------------------------------------
      *    Media loading
@@ -431,27 +432,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 Session.set(oldMedia.title, seconds);
             }
         }
+        setScene(m.kind === 'audio' ? 'audio' : 'video');
 
         setMedia(m);
-        setPlaying(true);
         setView('now');
-        const saved = Session.get(m.title);
+        const saved = Session.get(m.id);
         const shouldResume =
             settings.resumeEnabled &&
             saved !== undefined &&
             saved >= settings.resumeThreshold &&
             m.dur > 0 &&
-            saved < m.dur * 0.95;   // don't resume within the last 5% — the user
-        // is probably near the end and wants to finish
+            saved < m.dur * 0.95;   // don't resume within the last 5% — the user is probably near the end and wants to finish
 
-        if (shouldResume && saved !== undefined) {
-            seekTo(saved / m.dur);
-            toast(`Resuming at ${fmt(saved)}`);
-        } else {
-            seekTo(0);
+        // Defer to the element via requestAnimationFrame so React has
+        // committed the new src before we try to seek and play.
+        requestAnimationFrame(() => {
+            const v = videoRef.current;
+            if (v) {
+                if (shouldResume && saved !== undefined) {
+                    v.currentTime = saved;
+                    toast(`Resuming at ${fmt(saved)}`);
+                } else {
+                    v.currentTime = 0;
+                }
+                void v.play().catch(() => { /* autoplay blocked */ });
+            } else {
+                // No element (audio stage, or video element not yet mounted).
+                // Fall back to state-only seek.
+                seekTo(shouldResume && saved !== undefined ? saved / m.dur : 0);
+                _setPlaying(true);
+            }
+        });
+    }, [setMedia, setView, seekTo, toast, settings.resumeEnabled, settings.resumeThreshold]);
+
+    const registerVideoElement = useCallback((el: HTMLVideoElement | null) => {
+        videoRef.current = el;
+        if (el) {
+            // Sync element properties to current state on registration.
+            el.volume = Math.min(Math.max(vol, 0), 1);
+            el.muted = muted;
+            el.playbackRate = speed;
         }
-        setScene(m.kind === 'audio' ? 'audio' : 'video');
-    }, [setMedia, setView, seekTo, settings.resumeEnabled, settings.resumeThreshold, toast]);
+    }, [vol, muted, speed]);
 
     const takeSnapshot = useCallback(() => {
         if (!hasMedia) return;
@@ -468,7 +490,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const tick = () => {
             const seconds = posRef.current * dur;
             if (seconds >= settings.resumeThreshold) {
-                Session.set(media.title, seconds);
+                Session.set(media.id, seconds);
             }
         };
 
@@ -490,7 +512,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!media) return;
         if (pos >= 0.999 && media.dur > 0) {
-            Session.delete(media.title);
+            Session.delete(media.id);
         }
     }, [pos, media]);
 
@@ -504,11 +526,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             return;
         }
         setQueueIndex(i);
-        // Reuse the queue's shape to synthesize a Media object.
-        const next: Media = item.d === '12:48'
-            ? { ...AUDIO, title: item.n }
-            : { ...VIDEO, title: item.n, dur: parseDur(item.d) };
-        playMedia(next);
+        // ses the helper instead of the inline heuristic
+        playMedia(mediaFromQueueItem(item));
     }, [queue, playMedia, toast]);
 
     const nextItem = useCallback(() => {
@@ -541,17 +560,256 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
     }, [queue, queueIndex, playQueueItem, pos, dur, toast, settings.previousRestartsCurrent]);
 
-    /* --------------------------------------------------------
-     *    Seeking
-     *    -------------------------------------------------------- */
-    const seekBy = useCallback((deltaSeconds: number) => {
-        if (!hasMedia || dur === 0) return;
-        setPos(p => {
-            const next = p + deltaSeconds / dur;
-            setBuffered(next);
-            return Math.min(Math.max(next, 0), 1);
+    // Scan runner — one function that both startScan and addFolderFromPicker share
+    const runScan = useCallback(async (
+        targets: Folder[],
+        scanFn: (onProgress: (p: ScanProgress) => void, isCancelled: () => boolean) => Promise<ScanResult | { items: number; cancelled: boolean }>,
+    ) => {
+        let cancelled = false;
+        cancelRef.current = () => { cancelled = true; };
+
+        setScan({
+            inProgress: true,
+            itemsFound: 0,
+            itemsExpected: 0,
+            currentFolder: targets[0]?.label ?? '',
+            startedAt: Date.now(),
         });
-    }, [hasMedia, dur]);
+
+        try {
+            const result = await scanFn(
+                p => setScan(prev => prev ? {
+                    ...prev,
+                    itemsFound: p.itemsFound,
+                    itemsExpected: p.itemsExpected,
+                    currentFolder: p.currentFolder,
+                } : prev),
+                () => cancelled,
+            ) as ScanResult;
+
+            setScan(null);
+            setLibraryMeta(prev => ({
+                ...prev,
+                lastScanAt: result.cancelled ? prev.lastScanAt : Date.now(),
+            }));
+
+            if (result.cancelled) {
+                toast('Scan cancelled — partial results kept');
+            } else {
+                const count = (result.itemsFound !== undefined) ? result.itemsFound : '-'
+                toast(`Scanned ${targets.length} folder${targets.length === 1 ? '' : 's'} · ${count} items`);
+            }
+        } catch (err) {
+            console.error(err)
+            setScan(null);
+            toast(`Scan failed: ${err}`, 'err');
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        setLibraryMeta(prev => ({
+            ...prev,
+            folders: folders.length,
+            itemCount: folders.reduce((n, f) => n + f.itemCount, 0),
+        }));
+    }, [folders]);
+
+    // Public scan actions:
+    // PS1
+    const startScan = useCallback(() => {
+        if (scan?.inProgress) return;
+        void runScan(folders, (onProgress, isCancelled) => scanAll(folders, onProgress, isCancelled));
+    }, [folders, scan, runScan]);
+    // PS2
+    const cancelScan = useCallback(() => {
+        cancelRef.current();
+    }, []);
+    // PS3
+    const addFolderFromPicker = useCallback(async () => {
+        if (scan?.inProgress) {
+            toast('Wait for the current scan to finish', 'err');
+            return;
+        }
+
+        const path = await pickFolder();
+        if (path === null) return;   // user cancelled
+
+        const id = idForFolderPath(path);
+
+        // Re-adding the same folder is a no-op.
+        if (folders.some(f => f.id === id || f.path === path)) {
+            toast('That folder is already in the library', 'err');
+            return;
+        }
+
+        const label = labelForFolderPath(path);
+        const folder: Folder = {
+            id,
+            label,
+            path,
+            itemCount: Math.floor(200 + Math.random() * 1500),
+        };
+
+        setFolders(prev => [...prev, folder]);
+
+        await runScan([folder], (onProgress, isCancelled) =>
+            scanOne(folder, onProgress, isCancelled),
+        );
+    }, [scan, folders, toast, runScan]);
+
+    const removeFolder = useCallback((folderId: string) => {
+        if (scan?.inProgress) {
+            toast('Wait for the current scan to finish', 'err');
+            return;
+        }
+
+        setFolders(prev => {
+            const next = prev.filter(f => f.id !== folderId);
+            // Update libraryMeta to match.
+            setLibraryMeta(meta => ({
+                ...meta,
+                folders: next.length,
+            }));
+            return next;
+        });
+
+        toast('Folder removed from library');
+    }, [scan, toast]);
+
+    const removeLibrary = useCallback(() => {
+        if (scan?.inProgress) {
+            toast('Wait for the current scan to finish', 'err');
+            return;
+        }
+
+        setFolders([]);
+        setLibraryMeta({ folders: 0, itemCount: 0, lastScanAt: null });
+        toast('Library removed');
+    }, [scan, toast]);
+
+    // Repository actions
+    const addRepository = useCallback((repo: Repository) => {
+        setRepositories(prev => {
+            if (prev.some(r => r.id === repo.id)) return prev;
+            return [...prev, repo];
+        });
+    }, []);
+
+    const removeRepository = useCallback((repoId: string) => {
+        setRepositories(prev => prev.filter(r => r.id !== repoId));
+        setCatalogs(prev => prev.filter(c => c.repository.id !== repoId));
+    }, []);
+
+    const refreshRepositories = useCallback(async () => {
+        if (!settings.pluginNetwork) {
+            setRepositoryError('Plugin network access is disabled in Settings → Privacy');
+            return;
+        }
+        if (repositories.length === 0) return;
+        setRepositoriesLoading(true);
+        setRepositoryError(null);
+        try {
+            const results = await Promise.allSettled(
+                repositories.map(r => fetchRepository(r)),
+            );
+            const nextCatalogs: RepositoryCatalog[] = [];
+            const errors: string[] = [];
+            results.forEach((r, i) => {
+                const repo = repositories[i];
+                if (!repo) return;
+                if (r.status === 'fulfilled') nextCatalogs.push(r.value);
+                else errors.push(`${repo.label}: ${String(r.reason)}`);
+            });
+            setCatalogs(nextCatalogs);
+            if (errors.length > 0) setRepositoryError(errors.join('; '));
+        } catch (err) {
+            setRepositoryError(String(err));
+        } finally {
+            setRepositoriesLoading(false);
+        }
+    }, [repositories, settings.pluginNetwork]);
+
+    // A derived list of available entries - computed inline in the context but memoized
+    const availableEntries = useMemo<AvailableEntry[]>(() => {
+        const out: AvailableEntry[] = [];
+        for (const catalog of catalogs) {
+            for (const rp of catalog.plugins) {
+                const installed = plugins.find(p =>
+                    p.id === rp.id || p.n === rp.name
+                );
+                out.push({
+                    ...rp,
+                    repositoryId: catalog.repository.id,
+                    repositoryLabel: catalog.repository.label,
+                    installed: !!installed,
+                    installedVersion: installed?.v,
+                });
+            }
+        }
+        return out;
+    }, [catalogs, plugins]);
+
+    // Install from a repository entry
+    const installFromRepository = useCallback((entry: AvailableEntry) => {
+        if (!settings.pluginsEnabled) {
+            toast('Plugins are turned off — enable them first', 'err');
+            return;
+        }
+        if (!settings.pluginNetwork && entry.permissions.includes('network')) {
+            toast('This plugin needs network access. Enable it in Settings → Privacy.', 'err');
+            return;
+        }
+        if (!entry.compatibility.ok) {
+            toast(`Can't install: ${entry.compatibility.reason ?? 'incompatible'}`, 'err');
+            return;
+        }
+
+        if (entry.installed) {
+            toast(`${entry.name} is already installed`, 'err');
+            return;
+        }
+
+        const newPlugin: Plugin = {
+            id: entry.id,
+            n: entry.name,
+            p: entry.provider,
+            v: entry.version,
+            c: entry.category,
+            d: entry.description,
+            long: entry.longDescription,
+            homepage: entry.homepage,
+            on: false,   // newly-installed plugins start disabled — user enables
+            st: 'ok',
+            signed: entry.signed,
+            apiVersion: entry.apiVersion,
+            size: entry.size,
+            installPath: `~/.local/share/openreel/plugins/${entry.id.replace(':', '-')}`,
+            permissions: entry.permissions,
+            hooks: entry.hooks,
+            activity: [
+                {
+                    at: new Date().toTimeString().slice(0, 8),
+                    level: 'info',
+                    msg: `Installed from ${entry.repositoryLabel} (v${entry.version})`,
+                },
+            ],
+        };
+
+        setPlugins(prev => [...prev, newPlugin]);
+        toast(`Installed ${entry.name}`);
+    }, [settings.pluginsEnabled, toast]);
+
+    // Auto-refresh on add
+    // auto-fetch on mount respects pluginUpdateChecks and pluginNetwork
+    const prevRepoIdsRef = useRef<string>('');
+    useEffect(() => {
+        const currentIds = repositories.map(r => r.id).sort().join(',');
+        if (currentIds === prevRepoIdsRef.current) return;
+        prevRepoIdsRef.current = currentIds;
+        if (repositories.length === 0) return;
+        if (!settings.pluginUpdateChecks || !settings.pluginNetwork) return;
+        void refreshRepositories();
+    }, [repositories, settings.pluginUpdateChecks, settings.pluginNetwork, refreshRepositories]);
 
     /* --------------------------------------------------------
      *    Scene switcher
@@ -582,6 +840,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             case 'about': setView('about'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
             case 'loading': setView('now'); setMedia(VIDEO); setPlaying(true); setBuffering(true); setPos(0.28); setQueueOpen(false); break;
             case 'offline': setView('now'); setMedia(VIDEO); setPlaying(true); setOffline(true); setPos(0.28); setQueueOpen(false); break;
+            // Error Cases
+            case 'error-missing': setView('now'); setMedia(ERROR_MISSING); setQueueOpen(false); break;
+            case 'error-permission': setView('now'); setMedia(ERROR_PERMISSION); setQueueOpen(false); break;
+            case 'error-corrupt': setView('now'); setMedia(ERROR_CORRUPT); setQueueOpen(false); break;
+            case 'error-no-audio': setView('now'); setMedia(ERROR_NO_AUDIO); setQueueOpen(false); break;
+            case 'error-video-out': setView('now'); setMedia(ERROR_VIDEO_OUT); setQueueOpen(false); break;
+            case 'error-plugin': setView('now'); setMedia(ERROR_PLUGIN); setQueueOpen(false); break;
             default: break;
         }
     }, []);
@@ -599,6 +864,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
     }, [hasMedia, toast]);
 
+    const syncPlayingFromElement = _setPlaying;
+    const watchAvailable = useMemo(() => isWatchAvailable(), []);
     /* --------------------------------------------------------
      *    Memoized context value
      *    -------------------------------------------------------- */
@@ -610,7 +877,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // media
         media, playMedia, setMedia, hasMedia,
         // transport
-        playing, setPlaying, pos, setPos, vol, setVol, muted, setMuted,
+        playing, setPlaying, syncPlayingFromElement, pos, dur, setPos, vol, setVol, muted, setMuted,
         speed, setSpeed, audioTrack, setAudioTrack, subTrack, setSubTrack,
         // queue
         queue, queueIndex, playQueueItem, nextItem, prevItem,
@@ -646,13 +913,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         liveMessage, setLiveMessage, announce,
         settings, setSetting, isChanged, resetSetting, resetAllSettings,
         // Setting Category
-        settingCat, setSettingCat
+        settingCat, setSettingCat,
+        // Url dialog
+        urlDialogOpen, setUrlDialogOpen,
+        // Media info
+        mediaInfoOpen, setMediaInfoOpen, getMediaInfo,
+        // Scanning
+        libraryMeta, scan, startScan, cancelScan,
+        // Plugin repository
+        availableEntries, addRepository, removeRepository, refreshRepositories, installFromRepository,
+        repositories, catalogs, repositoriesLoading, repositoryError,
+        // Folder management
+        addFolderFromPicker, removeFolder, removeLibrary, folders,
+        registerVideoElement, updateMediaDuration, watchAvailable
     }), [
         // ---- Must mirror the value object field-for-field ----
         theme, themePref, systemDark,
         view,
         media, hasMedia,
-        playing, pos, vol, muted, speed, audioTrack, subTrack,
+        playing, pos, dur, vol, muted, speed, audioTrack, subTrack,
         queue, queueIndex,
         queueOpen, advanced,
         buffering, offline,
@@ -662,6 +941,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         fullscreen,
         plugins, selectedPluginId, confirmUninstallId, aboutTab,
         // ---- Callbacks ----
+        _setPlaying, _setMuted, _setSpeed, _setVol,
         playMedia, playQueueItem, nextItem, prevItem,
         applyScene, toast, dismissToast, seekBy,
         toggleFullscreen, setFullscreen,
@@ -671,30 +951,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         settings, setSetting, isChanged, resetSetting, resetAllSettings,
         // Anouncements
         setPlayingAnnounced, setMutedAnnounced, setSpeedAnnounced, setAudioTrackAnnounced,
-        setSubTrackAnnounced, liveMessage, setLiveMessage, announce
+        setSubTrackAnnounced, liveMessage, setLiveMessage, announce,
+        // Setting Category
+        settingCat, setSettingCat,
+        // url dg
+        urlDialogOpen, setUrlDialogOpen,
+        // Media info
+        mediaInfoOpen, setMediaInfoOpen,
+        // Scanning
+        libraryMeta, scan, startScan, cancelScan,
+        // Plugin repository
+        availableEntries, addRepository, removeRepository, refreshRepositories, installFromRepository,
+        repositories, catalogs, repositoriesLoading, repositoryError,
+        // Folder management
+        addFolderFromPicker, removeFolder, removeLibrary, folders,
+        registerVideoElement, updateMediaDuration, watchAvailable
     ]);
 
     return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;
 }
 
-/* ============================================================
- *  Hook
- *  ============================================================ */
-export function usePlayer(): PlayerState {
-    const ctx = useContext(PlayerCtx);
-    if (!ctx) throw new Error('usePlayer must be used inside <PlayerProvider>');
-    return ctx;
-}
-
-/* ============================================================
- *  Helpers
- *  ============================================================ */
-function parseDur(s: string): number {
-    // "48:31" → 2911; "1:42:08" → 6128; "—" → 0
-    if (!s || s === '—') return 0;
-    const parts = s.split(':').map(Number);
-    if (parts.some(Number.isNaN)) return 0;
-    if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
-    if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
-    return 0;
-}

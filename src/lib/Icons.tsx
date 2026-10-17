@@ -30,7 +30,8 @@ export const paths = {
     shuffle: <g><path d="M17 4.4 20.4 7.8 17 11.2" /><path d="M3.6 7.8h3.1c1.5 0 2.9.7 3.8 1.9l3 4.1a4.7 4.7 0 0 0 3.8 1.9h3.1" /><path d="M17 16.2l3.4 3.4L17 23" /><path d="M3.6 19.7h3.1c1.5 0 2.9-.7 3.8-1.9l.7-1" /><path d="M14.4 9.2l.6-.8a4.7 4.7 0 0 1 3.8-1.9h1.6" /></g>,
     repeat: <g><path d="m17 2.8 3.2 3.2L17 9.2" /><path d="M3.8 12.6V10a4 4 0 0 1 4-4h12.4" /><path d="M7 21.2 3.8 18 7 14.8" /><path d="M20.2 11.4V14a4 4 0 0 1-4 4H3.8" /></g>,
     folder: <path d="M3.4 7.2a2 2 0 0 1 2-2h3.5l2 2.4h7.7a2 2 0 0 1 2 2v7.2a2 2 0 0 1-2 2H5.4a2 2 0 0 1-2-2z" />,
-    film: <g><rect x="2.8" y="4.4" width="18.4" height="15.2" rx="2.2" /><path d="M7.6 4.4v15.2M16.4 4.4v15.2M2.8 12h18.4" /></g>,
+    film: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="Film" > <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M7 3v18M3 7h4M3 12h4M3 17h4M17 3v18M17 7h4M17 12h4M17 17h4" /> </svg>
+    ,
     music: <g><path d="M9.2 18.4V6.2l10-2v12.2" /><circle cx="6.6" cy="18.4" r="2.6" /><circle cx="16.6" cy="16.4" r="2.6" /></g>,
     link: <g><path d="M10.2 13.8a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.5 1.5" /><path d="M13.8 10.2a4.5 4.5 0 0 0-6.4 0l-2.6 2.6a4.5 4.5 0 0 0 6.4 6.4l1.5-1.5" /></g>,
     refresh: <g><path d="M20.4 11.4a8.4 8.4 0 1 0-2.1 6.4" /><path d="M20.8 5.6v5.8h-5.8" /></g>,
@@ -45,6 +46,9 @@ export const paths = {
     lock: <g><rect x="4.4" y="10.4" width="15.2" height="9.6" rx="2.2" /><path d="M8 10.4V7.6a4 4 0 0 1 8 0v2.8" /></g>,
     zap: <path d="M13.4 2.6 4.8 13.4h6.2l-.4 8 8.6-10.8h-6.2z" />,
     disc: <g><circle cx="12" cy="12" r="8.6" /><circle cx="12" cy="12" r="2.4" /></g>,
+    clock: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" /></svg>,
+    trash: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" > <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /> </svg>,
+    shield: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" > <path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /> </svg>,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;
@@ -61,19 +65,19 @@ export default function Icon({ name, size = 18, weight = 1.75, className, style 
     const path = paths[name];
     return (
         <svg
-        className={`block shrink-0 ${className ?? ''}`}
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={weight}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={style}
-        aria-hidden="true"
+            className={`block shrink-0 ${className ?? ''}`}
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={weight}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={style}
+            aria-hidden="true"
         >
-        {path}
+            {path}
         </svg>
     );
 }

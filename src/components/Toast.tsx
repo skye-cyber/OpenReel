@@ -1,5 +1,5 @@
 import Icon from "../lib/Icons";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 
 export function ToastStack() {
     const { toasts, dismissToast } = usePlayer();

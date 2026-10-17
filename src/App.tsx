@@ -1,4 +1,5 @@
-import { PlayerProvider, usePlayer } from './state/PlayerContext';
+import { PlayerProvider } from './state/PlayerContext';
+import { usePlayer } from './hooks/player';
 import { Sidebar } from './components/Sidebar';
 import { StatusStrip } from './components/StatusStrip';
 import { TitleBar } from './components/TitleBar';
@@ -10,13 +11,15 @@ import ViewSwitch from './views';
 import { useKeyboardShortcuts } from './state/useKeyboardShortcuts';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LiveRegion } from './components/Live';
+import { UrlDialog } from './components/UrlDialog';
+import { MediaInfo } from './components/MediaInfo';
 
 function Shell() {
-    const { queueOpen } = usePlayer();
+    const { queueOpen, urlDialogOpen, setUrlDialogOpen, mediaInfoOpen } = usePlayer();
     useKeyboardShortcuts();
 
     return (
-        <div className="h-screen flex flex-col bg-app">
+        <div className="relative h-screen flex flex-col bg-app">
             <TitleBar />
 
             <div className="flex-1 flex min-h-0 relative">
@@ -31,12 +34,14 @@ function Shell() {
                 </div>
 
                 {queueOpen && <QueuePanel />}
+                {mediaInfoOpen && <MediaInfo />}
             </div>
 
             <StatusStrip />
             <Transport />
             <ToastStack />
             <LiveRegion />
+            {urlDialogOpen && <UrlDialog onClose={() => setUrlDialogOpen(false)} />}
             <ModalRoot />
         </div>
     );

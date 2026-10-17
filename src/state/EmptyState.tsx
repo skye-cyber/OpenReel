@@ -1,17 +1,16 @@
-import { RECENTS, VIDEO } from '../data/mock';
-import { usePlayer } from '../state/PlayerContext';
+import { RECENTS } from '../data/mock';
+import { usePlayer } from "../hooks/player";
 import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
+import {mediaFromRecentItem } from '../helpers/herpers';
+import type { RecentItem } from '../types';
 
 export function EmptyState() {
-    const { setView, playMedia, toast } = usePlayer();
+    const { setView, playMedia, setUrlDialogOpen } = usePlayer();
     return (
-        <div className="min-h-full flex flex-col items-center justify-center p-12 px-6 relative
-        before:content-[''] before:absolute before:inset-0 before:pointer-events-none
-        before:bg-[radial-gradient(520px_300px_at_50%_32%,var(--color-accent-soft),transparent_72%)]">
+        <div className="min-h-full flex flex-col items-center justify-center p-12 px-6 relative before:content-[''] before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(520px_300px_at_50%_32%,var(--color-accent-soft),transparent_72%)]">
             <div className="relative flex flex-col items-center">
-                <div className="w-16.5 h-16.5 rounded-[20px] flex items-center justify-center bg-surface border border-border-2
-        text-text-3 mb-5 shadow-sm">
+                <div className="w-16.5 h-16.5 rounded-[20px] flex items-center justify-center bg-surface border border-border-2 text-text-3 mb-5 shadow-sm">
                     <Icon name="disc" size={28} weight={1.5} />
                 </div>
                 <h2 className="text-[17px] font-[650] mb-1.5 tracking-[-.01em]">Nothing playing</h2>
@@ -21,7 +20,7 @@ export function EmptyState() {
 
                 <div className="flex gap-2.5 mb-8">
                     <Button variant="primary" icon="folder" onClick={() => setView('open')}>Open File…</Button>
-                    <Button icon="link" onClick={() => toast('Open URL dialog')}>Open URL…</Button>
+                    <Button icon="link" onClick={() => setUrlDialogOpen(true)}>Open URL…</Button>
                 </div>
 
                 <div className="w-full max-w-[480px]">
@@ -29,14 +28,13 @@ export function EmptyState() {
                         <span className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3">Recent</span>
                         <button className="text-[11px] text-text-2 hover:text-text">Clear list</button>
                     </div>
-                    {RECENTS.map((r, i) => (
+                    {RECENTS.map((r: RecentItem, i) => (
                         <div
                             key={i}
-                            onClick={() => playMedia(VIDEO)}
+                            onClick={() => playMedia(mediaFromRecentItem(r))}
                             className="rec flex items-center gap-2.5 p-[8px_11px] rounded-md cursor-pointer transition-colors hover:bg-surface"
                         >
-                            <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border flex items-center justify-center
-            text-text-3 shrink-0">
+                            <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border flex items-center justify-center text-text-3 shrink-0">
                                 <Icon name={r.k === 'audio' ? 'music' : 'film'} size={15} />
                             </div>
                             <div className="flex-1 min-w-0">

@@ -1,5 +1,5 @@
 import Icon from "../lib/Icons";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import type { ViewId, IconName } from "../types";
 
 interface NavItem { id: ViewId; l: string; ic: IconName }

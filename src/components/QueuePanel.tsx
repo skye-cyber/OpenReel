@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { IconButton } from './Button';
 import { ContextMenu } from './ContextMenu/Menu';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from '../hooks/player';
 import type { QueueItem } from '../types';
 import type { ContextMenuEntry } from '../types/contextmenu';
-import { useContextMenu } from '../lib/useContextMenu';
+import { useContextMenu } from '../hooks/useContextMenu';
+
 
 function EqBars() {
     return (

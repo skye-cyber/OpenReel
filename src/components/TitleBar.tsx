@@ -1,9 +1,9 @@
 import { useState } from "react";
 import Icon from "../lib/Icons";
 import { Menu, MenuItem, MenuHead } from "../components/Menu";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import { IconButton } from "../components/Button";
-import { SCENES } from "../data/mock";
+import { SCENES } from "../lib/Scene";
 
 export function TitleBar() {
     const { media, theme, setThemePref, scene, applyScene } = usePlayer();

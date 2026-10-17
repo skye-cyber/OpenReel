@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { usePlayer } from "../../state/PlayerContext";
+import { usePlayer } from "../../hooks/player";
 import { Button } from "../Button";
 import { Row2 } from "./shared";
 import { StatusChip, permissionIcon } from "./shared";
@@ -7,7 +7,7 @@ import Icon from "../../lib/Icons";
 import { Chip } from "../Chip";
 import { ConflictPanel } from "./Conflict";
 import { SectionTitle } from "./shared";
-import { PLUGIN_PERMISSIONS } from "../../data/mock";
+import { PLUGIN_PERMISSIONS } from "../../lib/Permission";
 
 export function PluginDetail({ id }: { id: string }) {
   const {

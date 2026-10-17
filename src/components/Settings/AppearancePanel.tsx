@@ -1,7 +1,7 @@
 import { Group, Row } from './Shared';
 import { Seg } from '../Segment';
 import { Button } from '../Button';
-import { usePlayer } from '../../state/PlayerContext';
+import { usePlayer } from "../../hooks/player";
 import type { Density, MotionPref } from '../../types/settings';
 import { Switch } from '../Switch';
 

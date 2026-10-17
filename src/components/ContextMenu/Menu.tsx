@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { usePlayer } from '../../state/PlayerContext';
+import { usePlayer } from '../../hooks/player';
 import type { ContextMenuProps } from '../../types/contextmenu';
 import { FOCUSABLE } from '../../types/contextmenu';
 import { SubmenuRow } from '../ContextMenu/Submenu';

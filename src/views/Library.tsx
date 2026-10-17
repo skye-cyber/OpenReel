@@ -2,12 +2,14 @@ import { useState, useMemo } from 'react';
 import Icon from '../lib/Icons';
 import { Button, IconButton } from '../components/Button';
 import { Field } from '../components/Field';
-import { usePlayer } from '../state/PlayerContext';
+import { usePlayer } from "../hooks/player";
 import { LIBRARY, VIDEO } from '../data/mock';
 import { ContextMenu } from '../components/ContextMenu/Menu';
 import type { ContextMenuEntry } from '../types/contextmenu';
 import type { LibraryRow } from '../types';
-import { useContextMenu } from '../lib/useContextMenu';
+import { useContextMenu } from '../hooks/useContextMenu';
+import { mediaFromLibraryRow, formatRelative } from '../helpers/herpers';
+import { LibraryGrid } from '../components/LibraryGrid';
 
 type Filter = 'all' | 'video' | 'audio' | 'unwatched' | 'missing';
 
@@ -20,10 +22,12 @@ const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
 ];
 
 export default function Library() {
-    const { playMedia, toast } = usePlayer();
+    const { playMedia, toast, libraryMeta, scan, cancelScan, startScan, addFolderFromPicker } = usePlayer();
     const [filter, setFilter] = useState<Filter>('all');
     const [q, setQ] = useState('');
     const { state: ctxMenu, open: openCtx, close: closeCtx } = useContextMenu<LibraryRow>();
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+    const [selected, setSelected] = useState(0);
 
     const rows = useMemo(() => {
         const query = q.trim().toLowerCase();
@@ -39,7 +43,9 @@ export default function Library() {
             return true;
         });
     }, [filter, q]);
-    console.log(rows)
+    // The selected index is what lets selection persist across view-mode switches and across filtering
+    const safeSel = Math.min(selected, Math.max(rows.length - 1, 0));
+
     const anyFilter = filter !== 'all' || q.trim().length > 0;
 
     const entriesFor = (row: LibraryRow): ContextMenuEntry[] => [
@@ -63,11 +69,32 @@ export default function Library() {
         },
     ];
 
+    const metaLine = scan?.inProgress
+        ? `Scanning ${scan.currentFolder} · ${scan.itemsFound?.toLocaleString()}${scan.itemsExpected ? ` of ${scan.itemsExpected?.toLocaleString()}` : ''
+        } items`
+        : libraryMeta.lastScanAt === null
+            ? `${libraryMeta.folders} folder${libraryMeta.folders === 1 ? '' : 's'} · not yet scanned`
+            : `${libraryMeta.folders} folder${libraryMeta.folders === 1 ? '' : 's'} · ${libraryMeta.itemCount?.toLocaleString() || libraryMeta.itemCount} items · last scan ${formatRelative(libraryMeta.lastScanAt)}`;
     return (
         <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Library</h1>
-            <p className="text-[12.5px] text-text-2 mb-5.5">3 folders · 8 412 items · last scan 4 minutes ago</p>
-
+            <p className="text-[12.5px] text-text-2 mb-5.5">{metaLine}</p>
+            {scan?.inProgress && (
+                <div className="flex items-center gap-3 mb-4.5">
+                    <div className="flex-1 h-1 rounded-full bg-surface-3 overflow-hidden">
+                        <div
+                            className="h-full bg-accent transition-[width] duration-150"
+                            style={{ width: `${scan.itemsExpected > 0 ? Math.min(100, scan.itemsFound / scan.itemsExpected * 100) : 0}%` }}
+                        />
+                    </div>
+                    <button
+                        onClick={cancelScan}
+                        className="text-[11px] text-text-2 hover:text-text shrink-0"
+                    >
+                        Stop
+                    </button>
+                </div>
+            )}
             <div className="flex items-center gap-2.5 mb-4.5 flex-wrap">
                 <Field
                     icon="search"
@@ -81,7 +108,7 @@ export default function Library() {
                         key={c.id}
                         onClick={() => setFilter(c.id)}
                         className={`h-7 px-3 rounded-[20px] border text-[12px] transition-all
-                ${filter === c.id
+                    ${filter === c.id
                                 ? 'bg-accent-dim border-transparent text-accent font-semibold'
                                 : 'bg-surface border-border-2 text-text-2 hover:border-border-3 hover:text-text'}`}
                     >
@@ -89,25 +116,61 @@ export default function Library() {
                     </button>
                 ))}
                 <div className="flex-1" />
-                <IconButton icon="queue" active title="List view" />
-                <IconButton icon="grid" title="Grid view" />
-                <Button size="sm" icon="plus">Add folder</Button>
+                <IconButton
+                    icon="queue"
+                    active={viewMode === 'list'}
+                    title="List view"
+                    onClick={() => setViewMode('list')}
+                />
+                <IconButton
+                    icon="grid"
+                    active={viewMode === 'grid'}
+                    title="Grid view"
+                    onClick={() => setViewMode('grid')}
+                />
+                <Button
+                    size="sm"
+                    icon="refresh"
+                    disabled={scan?.inProgress}
+                    onClick={startScan}
+                >
+                    {scan?.inProgress ? 'Scanning…' : 'Rescan'}
+                </Button>
+                <Button
+                    size="sm"
+                    icon="plus"
+                    disabled={scan?.inProgress}
+                    onClick={() => addFolderFromPicker()}
+                >
+                    Add folder
+                </Button>
             </div>
 
             {rows.length === 0 ? (
                 <div className="py-16 text-center">
                     <div className="text-[12.5px] text-text-2 mb-3">
-                        {anyFilter
-                            ? <>No items match your filters.</>
-                            : <>Library is empty. Add a folder to get started.</>}
+                        {libraryMeta.folders === 0
+                            ? 'Library is empty. Add a folder to index your media.'
+                            : anyFilter
+                                ? 'No items match your filters.'
+                                : 'Library is empty. Add a folder to get started.'}
                     </div>
-                    {anyFilter && (
+                    {libraryMeta.folders === 0 ? (
+                        <Button
+                            size="sm"
+                            variant="primary"
+                            icon="plus"
+                            onClick={() => void addFolderFromPicker()}
+                        >
+                            Add folder
+                        </Button>
+                    ) : anyFilter ? (
                         <Button size="sm" onClick={() => { setFilter('all'); setQ(''); }}>
                             Clear filters
                         </Button>
-                    )}
+                    ) : null}
                 </div>
-            ) : (
+            ) : viewMode == 'list' ? (
                 <table className="w-full border-collapse text-[12.5px]">
                     <thead>
                         <tr>
@@ -123,18 +186,30 @@ export default function Library() {
                         {rows.map((r: LibraryRow, i) => (
                             <tr
                                 key={i}
-                                onDoubleClick={() => {
-                                    const media: any = { title: r.t, dur: r.d, kind: r.f, sub: '' }
-                                    playMedia(media)
-                                }}
+                                onClick={() => setSelected(i)}
+                                onDoubleClick={() => playMedia(mediaFromLibraryRow(r))}
                                 onContextMenu={e => openCtx(e, r)}
-                                tabIndex={0}
+                                tabIndex={i === safeSel ? 0 : -1}
                                 onKeyDown={e => {
                                     if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
                                         openCtx(e, r);
                                     }
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        playMedia(mediaFromLibraryRow(r));
+                                    }
+                                    if (e.key === 'ArrowDown' && i < rows.length - 1) {
+                                        e.preventDefault();
+                                        setSelected(i + 1);
+                                    }
+                                    if (e.key === 'ArrowUp' && i > 0) {
+                                        e.preventDefault();
+                                        setSelected(i - 1);
+                                    }
                                 }}
-                                className="cursor-pointer transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface-2"
+
+                                className={`cursor-pointer transition-colors focus:outline-none
+                                ${i === safeSel ? 'bg-accent-soft' : 'hover:bg-surface focus-visible:bg-surface-2'}`}
                             >
                                 <td className="px-3 py-2.5 border-b border-border">
                                     <div className="flex items-center gap-2.5 min-w-0">
@@ -166,6 +241,14 @@ export default function Library() {
                         ))}
                     </tbody>
                 </table>
+            ) : (
+                <LibraryGrid
+                    rows={rows}
+                    selected={safeSel}
+                    onSelect={setSelected}
+                    onPlay={r => playMedia(mediaFromLibraryRow(r))}
+                    onContextMenu={(e, r) => openCtx(e, r)}
+                />
             )}
 
             {ctxMenu && (

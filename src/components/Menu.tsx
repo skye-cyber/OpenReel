@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import Icon from "../lib/Icons";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 
 interface MenuItemProps {
     children: ReactNode;

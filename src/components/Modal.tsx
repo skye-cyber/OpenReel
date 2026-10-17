@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import type { ReactNode } from "react";
 import Icon from "../lib/Icons";
 import { Chip } from "./Chip";
 import { Button } from "./Button";
-import { useFocusTrap } from "../lib/useFocus";
+import { useFocusTrap } from "../hooks/useFocus";
 import type { IconName } from "../types";
 
 interface ModalProps {

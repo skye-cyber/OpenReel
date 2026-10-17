@@ -1,7 +1,7 @@
 import { Group, Row } from './Shared';
 import { Seg } from '../Segment';
 import { Switch } from '../Switch';
-import { usePlayer } from '../../state/PlayerContext';
+import { usePlayer } from "../../hooks/player";
 import type { ResumeThreshold, SeekStep } from '../../types/settings';
 
 export function PlaybackPanel() {
