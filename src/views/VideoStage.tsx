@@ -1,13 +1,27 @@
-import type { VideoMedia } from "../types";
-import { Button } from "../components/Button";
-import { usePlayer } from "../state/PlayerContext";
-import Icon from "../lib/Icons";
-import { fmt } from "../lib/format";
-import { FullscreenTransport } from "../components/Transport";
-import { useEffect } from "react";
+import { useEffect } from 'react';
+import type { VideoMedia } from '../types';
+import { Button } from '../components/Button';
+import { ContextMenu } from '../components/ContextMenu/Menu';
+import { usePlayer } from '../state/PlayerContext';
+import Icon from '../lib/Icons';
+import { fmt } from '../lib/format';
+import { FullscreenTransport } from '../components/Transport/Fullscreen';
+import type { ContextMenuEntry } from '../types/contextmenu';
+import { useContextMenu } from '../lib/useContextMenu';
 
 export function VideoStage({ media }: { media: VideoMedia }) {
-    const { playing, setPlayingAnnounced, pos, buffering, offline, fullscreen, toggleFullscreen, pushEscapeHandler, popEscapeHandler } = usePlayer();
+    const {
+        playing, setPlayingAnnounced,
+        pos, buffering, offline,
+        fullscreen, toggleFullscreen,
+        pushEscapeHandler, popEscapeHandler,
+        settings, setSetting, takeSnapshot,
+        setAudioTrack,
+        setSubTrack,
+        toast,
+    } = usePlayer();
+
+    const { state: ctxMenu, open: openCtx, close: closeCtx } = useContextMenu<undefined>();
 
     useEffect(() => {
         if (!fullscreen) return;
@@ -15,15 +29,57 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         return () => popEscapeHandler('fullscreen');
     }, [fullscreen, toggleFullscreen, pushEscapeHandler, popEscapeHandler]);
 
+    const entries: ContextMenuEntry[] = [
+        {
+            label: playing ? 'Pause' : 'Play',
+            icon: playing ? 'pause' : 'play',
+            shortcut: 'Space',
+            onSelect: () => setPlayingAnnounced(!playing),
+        },
+        { kind: 'separator' },
+        {
+            kind: 'submenu', label: 'Audio track', icon: 'audio',
+            items: [
+                { label: 'English', onSelect: () => { setAudioTrack(0); toast('Audio: English — Undo'); } },
+                { label: 'German', onSelect: () => { setAudioTrack(1); toast('Audio: German — Undo'); } },
+                { label: 'Commentary', onSelect: () => { setAudioTrack(2); toast('Audio: Commentary — Undo'); } },
+            ],
+        },
+        {
+            kind: 'submenu', label: 'Subtitles', icon: 'cc',
+            items: [
+                { label: 'Off', onSelect: () => { setSubTrack(-1); toast('Subtitles off'); } },
+                { label: 'English', onSelect: () => { setSubTrack(0); toast('Subtitles: English'); } },
+                { label: 'German', onSelect: () => { setSubTrack(1); toast('Subtitles: German'); } },
+            ],
+        },
+        { kind: 'separator' },
+        {
+            label: 'Aspect ratio', icon: 'grid',
+            onSelect: () => {
+                const next = settings.defaultAspect === 'fit' ? 'fill' : settings.defaultAspect === 'fill' ? 'stretch' : 'fit';
+                setSetting('defaultAspect', next);
+                toast(`Aspect: ${next} — Undo`);
+            },
+        },
+        { label: 'Snapshot', icon: 'film', onSelect: takeSnapshot },
+        { kind: 'separator' },
+        { label: 'Fullscreen', icon: 'full', shortcut: 'F', onSelect: () => toggleFullscreen() },
+        {
+            label: 'Media info', icon: 'info',
+            onSelect: () => toast('Media info panel is not implemented yet'),
+        },
+    ];
+
     return (
         <div className="p-3.5 flex flex-col gap-3.5 h-full min-h-0">
             <div
                 id="openreel-stage"
+                onContextMenu={e => openCtx(e, undefined)}
                 className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border border-border
         shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col
         [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0"
             >
-                {/* Letterbox / video surface */}
                 <div className="flex-1 relative">
                     <div className="absolute inset-0 pointer-events-none
         bg-[radial-gradient(circle_at_50%_44%,rgba(255,255,255,.05),transparent_62%)]" />
@@ -36,7 +92,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                     {!offline && !playing && (
                         <div className="absolute inset-0 flex items-center justify-center z-2">
                             <button
-                                onClick={() => setPlayingAnnounced /*setPlaying(true)*/}
+                                onClick={() => setPlayingAnnounced(true)}
                                 aria-label="Play"
                                 className="w-[74px] h-[74px] rounded-full bg-white/6 border border-white/10
             flex items-center justify-center text-white/62 backdrop-blur-[2px]
@@ -81,9 +137,16 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                     )}
                 </div>
 
-                {/* Fullscreen-only transport overlay */}
                 {fullscreen && <FullscreenTransport />}
             </div>
+
+            {ctxMenu && (
+                <ContextMenu
+                    position={ctxMenu.position}
+                    entries={entries}
+                    onClose={closeCtx}
+                />
+            )}
         </div>
     );
 }

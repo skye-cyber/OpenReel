@@ -2,7 +2,7 @@ import { PlayerProvider, usePlayer } from './state/PlayerContext';
 import { Sidebar } from './components/Sidebar';
 import { StatusStrip } from './components/StatusStrip';
 import { TitleBar } from './components/TitleBar';
-import { Transport } from './components/Transport';
+import { Transport } from './components/Transport/Default';
 import { QueuePanel } from './components/QueuePanel';
 import { ToastStack } from './components/Toast';
 import { ModalRoot } from './components/Modal';

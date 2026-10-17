@@ -1,8 +1,10 @@
-import { IconButton } from "./Button";
-import { usePlayer } from "../state/PlayerContext";
-import type { QueueItem } from "../types";
-import { useEffect } from "react";
-
+import { useEffect } from 'react';
+import { IconButton } from './Button';
+import { ContextMenu } from './ContextMenu/Menu';
+import { usePlayer } from '../state/PlayerContext';
+import type { QueueItem } from '../types';
+import type { ContextMenuEntry } from '../types/contextmenu';
+import { useContextMenu } from '../lib/useContextMenu';
 
 function EqBars() {
     return (
@@ -15,12 +17,45 @@ function EqBars() {
 }
 
 export function QueuePanel() {
-    const { queue, queueIndex, playQueueItem, setQueueOpen, pushEscapeHandler, popEscapeHandler } = usePlayer();
+    const {
+        queue, queueIndex, playQueueItem, setQueueOpen,
+        pushEscapeHandler, popEscapeHandler, setView, toast,
+    } = usePlayer();
+
+    const { state: ctxMenu, open: openCtx, close: closeCtx } =
+        useContextMenu<{ item: QueueItem; index: number }>();
 
     useEffect(() => {
         pushEscapeHandler('queue', () => setQueueOpen(false));
         return () => popEscapeHandler('queue');
     }, [setQueueOpen, pushEscapeHandler, popEscapeHandler]);
+
+    const entriesFor = (item: QueueItem, index: number): ContextMenuEntry[] => [
+        {
+            label: 'Play now', icon: 'play', disabled: item.bad,
+            onSelect: () => playQueueItem(index),
+        },
+        {
+            label: 'Play next', disabled: item.bad,
+            onSelect: () => toast(`"${item.n}" will play next`),
+        },
+        { kind: 'separator' },
+        { label: 'Move to top', onSelect: () => toast(`"${item.n}" moved to top`) },
+        { label: 'Show in library', icon: 'grid', onSelect: () => setView('library') },
+        {
+            label: 'Copy path', icon: 'layers', onSelect: () => {
+                navigator.clipboard?.writeText(item.n).catch(() => { });
+                toast('Path copied');
+            },
+        },
+        { kind: 'separator' },
+        {
+            label: 'Remove from queue', icon: 'x', danger: true,
+            onSelect: () => toast(`Removed "${item.n}" from queue`),
+        },
+    ];
+
+    const skipped = queue.filter((q: QueueItem) => q.bad).length;
 
     return (
         <aside className="w-[330px] shrink-0 flex flex-col bg-surface border-l border-border animate-slide-in">
@@ -41,8 +76,15 @@ export function QueuePanel() {
                         <div
                             key={i}
                             onClick={() => playQueueItem(i)}
+                            onContextMenu={e => openCtx(e, { item: q, index: i })}
+                            tabIndex={0}
+                            onKeyDown={e => {
+                                if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                                    openCtx(e, { item: q, index: i });
+                                }
+                            }}
                             className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-sm text-[12.5px] cursor-pointer
-                    transition-colors hover:bg-hover
+                    transition-colors hover:bg-hover focus:outline-none focus-visible:bg-surface-2
                     ${active ? 'bg-accent-soft' : ''}`}
                         >
                             <div className="w-4 text-[11px] text-text-3 text-center shrink-0 tabular-nums">
@@ -62,9 +104,19 @@ export function QueuePanel() {
                 </div>
             </div>
 
-            <div className="p-2.5 px-3.5 border-t border-border text-[11px] text-text-3">
-                Skipped {queue.filter((q: QueueItem) => q.bad).length} unplayable item{queue.filter((q: QueueItem) => q.bad).length === 1 ? '' : 's'}
-            </div>
+            {skipped > 0 && (
+                <div className="p-2.5 px-3.5 border-t border-border text-[11px] text-text-3">
+                    Skipped {skipped} unplayable item{skipped === 1 ? '' : 's'}
+                </div>
+            )}
+
+            {ctxMenu && (
+                <ContextMenu
+                    position={ctxMenu.position}
+                    entries={entriesFor(ctxMenu.payload.item, ctxMenu.payload.index)}
+                    onClose={closeCtx}
+                />
+            )}
         </aside>
     );
 }

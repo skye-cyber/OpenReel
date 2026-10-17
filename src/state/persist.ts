@@ -1,4 +1,5 @@
 import type { ThemePref } from '../types';
+import { DEFAULT_SETTINGS, type SettingKey, type Settings } from '../types/settings';
 
 const KEY = 'openreel.prefs.v1';
 
@@ -9,6 +10,7 @@ export interface PersistedPrefs {
     muted: boolean;
     speed: number;
     plugins: Record<string, boolean>;
+    settings: Partial<Settings>;
 }
 
 export const DEFAULT_PREFS: PersistedPrefs = {
@@ -18,6 +20,7 @@ export const DEFAULT_PREFS: PersistedPrefs = {
     muted: false,
     speed: 1,
     plugins: {},
+    settings: {},
 };
 
 export function loadPrefs(): PersistedPrefs {
@@ -34,6 +37,7 @@ export function loadPrefs(): PersistedPrefs {
             muted: typeof parsed.muted === 'boolean' ? parsed.muted : DEFAULT_PREFS.muted,
             speed: isFiniteNumber(parsed.speed) ? clamp(parsed.speed, 0.25, 4) : DEFAULT_PREFS.speed,
             plugins: isBooleanMap(parsed.plugins) ? parsed.plugins : {},
+            settings: validateSettings(parsed.settings),
         };
     } catch {
         return DEFAULT_PREFS;
@@ -58,20 +62,44 @@ export function clearPrefs(): void {
     }
 }
 
-/* ---------- helpers ---------- */
+/* ============================================================
+ *  Validators
+ *  ============================================================ */
 function isThemePref(x: unknown): x is ThemePref {
     return x === 'system' || x === 'light' || x === 'dark';
 }
+
 function isFiniteNumber(x: unknown): x is number {
     return typeof x === 'number' && Number.isFinite(x);
 }
+
 function isBooleanMap(x: unknown): x is Record<string, boolean> {
     if (!x || typeof x !== 'object' || Array.isArray(x)) return false;
     return Object.values(x as Record<string, unknown>).every(v => typeof v === 'boolean');
 }
+
+/**
+ * Type-by-template validation: each persisted value must match the typeof of
+ * its default. This rejects strings where booleans are expected, numbers where
+ * strings are expected, and any unknown keys are ignored.
+ */
+function validateSettings(raw: unknown): Partial<Settings> {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out: Partial<Settings> = {};
+    for (const key of Object.keys(DEFAULT_SETTINGS) as SettingKey[]) {
+        const def = DEFAULT_SETTINGS[key];
+        const v = (raw as Record<string, unknown>)[key];
+        if (v === undefined) continue;
+        if (typeof v !== typeof def) continue;
+        (out as Record<string, unknown>)[key] = v;
+    }
+    return out;
+}
+
 function clamp(n: number, lo: number, hi: number): number {
     return Math.min(Math.max(n, lo), hi);
 }
+
 function clamp01(n: number): number {
     return clamp(n, 0, 1);
 }

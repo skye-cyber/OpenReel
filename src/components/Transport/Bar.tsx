@@ -1,5 +1,5 @@
 import { useState, useRef, type CSSProperties } from "react";
-import { clamp01 } from "../lib/format";
+import { clamp01 } from "../../lib/format";
 
 interface BarProps {
     value: number;

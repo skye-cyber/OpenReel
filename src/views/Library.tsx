@@ -4,6 +4,10 @@ import { Button, IconButton } from '../components/Button';
 import { Field } from '../components/Field';
 import { usePlayer } from '../state/PlayerContext';
 import { LIBRARY, VIDEO } from '../data/mock';
+import { ContextMenu } from '../components/ContextMenu/Menu';
+import type { ContextMenuEntry } from '../types/contextmenu';
+import type { LibraryRow } from '../types';
+import { useContextMenu } from '../lib/useContextMenu';
 
 type Filter = 'all' | 'video' | 'audio' | 'unwatched' | 'missing';
 
@@ -16,9 +20,10 @@ const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
 ];
 
 export default function Library() {
-    const { playMedia } = usePlayer();
+    const { playMedia, toast } = usePlayer();
     const [filter, setFilter] = useState<Filter>('all');
     const [q, setQ] = useState('');
+    const { state: ctxMenu, open: openCtx, close: closeCtx } = useContextMenu<LibraryRow>();
 
     const rows = useMemo(() => {
         const query = q.trim().toLowerCase();
@@ -36,6 +41,27 @@ export default function Library() {
     }, [filter, q]);
 
     const anyFilter = filter !== 'all' || q.trim().length > 0;
+
+    const entriesFor = (row: LibraryRow): ContextMenuEntry[] => [
+        { label: 'Play', icon: 'play', onSelect: () => playMedia(VIDEO) },
+        { label: 'Play next', onSelect: () => toast(`"${row.t}" will play next`) },
+        { label: 'Add to queue', onSelect: () => toast(`Added "${row.t}" to queue`) },
+        { kind: 'separator' },
+        { label: 'Show in file manager', icon: 'folder', onSelect: () => toast('Opened file manager') },
+        {
+            label: 'Copy path', icon: 'layers', onSelect: () => {
+                navigator.clipboard?.writeText(row.p).catch(() => { });
+                toast('Path copied');
+            },
+        },
+        { kind: 'separator' },
+        { label: 'Mark as watched', onSelect: () => toast(`Marked "${row.t}" as watched`) },
+        { kind: 'separator' },
+        {
+            label: 'Remove from library', icon: 'trash', danger: true,
+            onSelect: () => toast(`Removed "${row.t}" from library`),
+        },
+    ];
 
     return (
         <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
@@ -102,7 +128,14 @@ export default function Library() {
                             <tr
                                 key={i}
                                 onDoubleClick={() => playMedia(VIDEO)}
-                                className="cursor-pointer transition-colors hover:bg-surface"
+                                onContextMenu={e => openCtx(e, r)}
+                                tabIndex={0}
+                                onKeyDown={e => {
+                                    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                                        openCtx(e, r);
+                                    }
+                                }}
+                                className="cursor-pointer transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface-2"
                             >
                                 <td className="px-3 py-2.5 border-b border-border">
                                     <div className="flex items-center gap-2.5 min-w-0">
@@ -135,6 +168,14 @@ export default function Library() {
                         ))}
                     </tbody>
                 </table>
+            )}
+
+            {ctxMenu && (
+                <ContextMenu
+                    position={ctxMenu.position}
+                    entries={entriesFor(ctxMenu.payload)}
+                    onClose={closeCtx}
+                />
             )}
         </div>
     );

@@ -1,23 +1,38 @@
-import { useState } from "react";
-import { Group, Row } from "./Shared";
-import { Switch } from "../Switch";
+import { Group, Row } from './Shared';
+import { Switch } from '../Switch';
+import { usePlayer } from '../../state/PlayerContext';
 
 export function PrivacyPanel() {
-    const [updateCheck, setUpdateCheck] = useState(true);
-    const [netPlugins, setNetPlugins] = useState(true);
+    const { settings, setSetting, isChanged, resetSetting } = usePlayer();
 
     return (
         <>
             <Group>Network</Group>
             <Row
                 title="Check for application updates"
+                changed={isChanged('updateCheck')}
+                onReset={() => resetSetting('updateCheck')}
                 desc="Contacts the release server at most once per day. No identifier is sent."
-                control={<Switch on={updateCheck} onChange={setUpdateCheck} label="Check for updates" />}
+                control={
+                    <Switch
+                        on={settings.updateCheck}
+                        onChange={v => setSetting('updateCheck', v)}
+                        label="Check for updates"
+                    />
+                }
             />
             <Row
                 title="Allow plugins to use the network"
+                changed={isChanged('pluginNetwork')}
+                onReset={() => resetSetting('pluginNetwork')}
                 desc="Individual plugins still declare their own network permission. Turning this off overrides all of them."
-                control={<Switch on={netPlugins} onChange={setNetPlugins} label="Allow plugin network access" />}
+                control={
+                    <Switch
+                        on={settings.pluginNetwork}
+                        onChange={v => setSetting('pluginNetwork', v)}
+                        label="Allow plugin network access"
+                    />
+                }
             />
 
             <Group>What OpenReel stores</Group>

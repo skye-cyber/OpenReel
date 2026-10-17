@@ -10,6 +10,11 @@ import type {
 import { AUDIO, ERROR_MEDIA, VIDEO, QUEUE as QUEUE_SEED, PLUGINS } from '../data/mock';
 import { fmt } from '../lib/format';
 import { loadPrefs, savePrefs } from './persist';
+import {
+    DEFAULT_SETTINGS,
+    type SettingKey,
+    type Settings,
+} from '../types/settings';
 
 interface PlayerState {
     theme: Theme;
@@ -72,8 +77,6 @@ interface PlayerState {
 
     seekBy: (deltaSeconds: number) => void;
 
-    aspect: 'fit' | 'fill' | 'stretch';
-    setAspect: (a: 'fit' | 'fill' | 'stretch') => void;
     takeSnapshot: () => void;
 
     fullscreen: boolean;
@@ -96,11 +99,6 @@ interface PlayerState {
     setConfirmUninstallId: (id: string | null) => void;
 
     reducedMotion: boolean;
-    reducedMotionPref: 'system' | 'on' | 'off';
-    setReducedMotionPref: (v: 'system' | 'on' | 'off') => void;
-
-    density: 'comfortable' | 'compact';
-    setDensity: (d: 'comfortable' | 'compact') => void;
 
     aboutTab: 'about' | 'diag' | 'feed';
     setAboutTab: (a: 'about' | 'diag' | 'feed') => void;
@@ -116,6 +114,12 @@ interface PlayerState {
     setSubTrackAnnounced: (n: number) => void;
     liveMessage: string;
     setLiveMessage: (ms: string) => void;
+
+    settings: Settings;
+    setSetting: <K extends SettingKey>(key: K, value: Settings[K]) => void;
+    isChanged: <K extends SettingKey>(key: K) => boolean;
+    resetSetting: <K extends SettingKey>(key: K) => void;
+    resetAllSettings: () => void;
 }
 
 const PlayerCtx = createContext<PlayerState | null>(null);
@@ -142,7 +146,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const [modal, setModal] = useState<ModalId>(null);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [scene, setScene] = useState('empty');
-    const [aspect, setAspect] = useState<'fit' | 'fill' | 'stretch'>('fit');
     const [fullscreen, setFullscreen] = useState(false);
     const escapeStackRef = useRef<Array<{ id: string; handler: () => void }>>([]);
 
@@ -166,7 +169,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     //             p.id in persisted ? { ...p, on: persisted[p.id]! } : p
     //         );
     //     });
-    const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+    const [settings, setSettings] = useState<Settings>(() => ({
+        ...DEFAULT_SETTINGS,
+        ...prefs.settings,
+    }));
     const [aboutTab, setAboutTab] = useState<'about' | 'diag' | 'feed'>('about');
     const [themePref, setThemePref] = useState<ThemePref>(prefs.themePref);
     const [vol, setVol] = useState(prefs.vol || 0.72);
@@ -182,15 +188,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         themePref === 'system'
             ? (systemDark ? 'dark' : 'light')
             : themePref;
-    const [reducedMotionPref, setReducedMotionPref] = useState<'system' | 'on' | 'off'>('system');
     const [systemReducedMotion, setSystemReducedMotion] = useState<boolean>(() => {
         if (typeof window === 'undefined' || !window.matchMedia) return false;
         return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     });
 
     const reducedMotion =
-        reducedMotionPref === 'system' ? systemReducedMotion
-            : reducedMotionPref === 'on';
+        settings.reducedMotion === 'system'
+            ? systemReducedMotion
+            : settings.reducedMotion === 'on';
+
+    const setSetting = useCallback(<K extends SettingKey>(key: K, value: Settings[K]) => {
+        setSettings(prev => ({ ...prev, [key]: value }));
+    }, []);
+
+    const isChanged = useCallback(
+        <K extends SettingKey>(key: K) => settings[key] !== DEFAULT_SETTINGS[key],
+        [settings]
+    );
+
+    const resetSetting = useCallback(<K extends SettingKey>(key: K) => {
+        setSettings(prev => ({ ...prev, [key]: DEFAULT_SETTINGS[key] }));
+    }, []);
+
+    const resetAllSettings = useCallback(() => {
+        setSettings(DEFAULT_SETTINGS);
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -205,14 +228,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         document.documentElement.setAttribute('data-motion', reducedMotion ? 'reduced' : 'normal');
     }, [reducedMotion]);
 
+    // Persist
     useEffect(() => {
         const t = setTimeout(() => {
             const pluginState: Record<string, boolean> = {};
             for (const p of plugins) pluginState[p.id] = p.on;
-            savePrefs({ v: 1, themePref, vol, muted, speed, plugins: pluginState });
+            savePrefs({
+                v: 1,
+                themePref, vol, muted, speed,
+                plugins: pluginState,
+                settings,
+            });
         }, 300);
         return () => clearTimeout(t);
-    }, [themePref, vol, muted, speed, plugins]);
+    }, [themePref, vol, muted, speed, plugins, settings]);
 
     const announce = useCallback((msg: string) => {
         setLiveMessage(msg);
@@ -488,8 +517,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
      *    Memoized context value
      *    -------------------------------------------------------- */
     const value = useMemo<PlayerState>(() => ({
-        // Density
-        density, setDensity,
         // theme
         theme, themePref, setThemePref,
         // routing
@@ -520,9 +547,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // plugins (from 2.2)
         plugins, setPluginEnabled, uninstallPlugin, resolveConflict,
         selectedPluginId, selectPlugin,
-        confirmUninstallId, setConfirmUninstallId, aspect, setAspect, takeSnapshot,
+        confirmUninstallId, setConfirmUninstallId, takeSnapshot,
         // Reduced motion
-        reducedMotionPref, setReducedMotionPref, reducedMotion,
+        reducedMotion,
         //About
         aboutTab, setAboutTab,
         //
@@ -530,7 +557,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // Anouncements
         setPlayingAnnounced, setMutedAnnounced, setSpeedAnnounced,
         setAudioTrackAnnounced, setSubTrackAnnounced,
-        liveMessage, setLiveMessage, announce
+        liveMessage, setLiveMessage, announce,
+        settings, setSetting, isChanged, resetSetting, resetAllSettings,
     }), [
         // ---- Must mirror the value object field-for-field ----
         theme, themePref, systemDark,
@@ -552,6 +580,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         pushEscapeHandler, popEscapeHandler, runTopEscape,
         setPluginEnabled, uninstallPlugin, resolveConflict, selectPlugin, setThemePref,
         buffered, setBuffered,
+        settings, setSetting, isChanged, resetSetting, resetAllSettings,
         // Anouncements
         setPlayingAnnounced, setMutedAnnounced, setSpeedAnnounced, setAudioTrackAnnounced,
         setSubTrackAnnounced, liveMessage, setLiveMessage, announce
