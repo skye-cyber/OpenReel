@@ -14,5 +14,6 @@ export interface PersistedPrefs {
     libraryMeta: LibraryMeta;
     libraryFolders: Folder[];
     repositories: Repository[];
-    uninstalled?: string[]
+    uninstalled?: string[];
+    subTrack: number;
 }

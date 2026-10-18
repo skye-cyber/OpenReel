@@ -8,6 +8,7 @@ import type {
 import type { Settings, SettingKey, Cat } from "./settings";
 import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
 import type { Folder } from "../lib/platform/library";
+import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
 
 
 export interface MediaInfoStream {
@@ -178,7 +179,12 @@ export interface PlayerState {
     folders: Folder[]
 
     registerVideoElement: (el: HTMLVideoElement | null) => void;
-    updateMediaDuration: (d: number) => void
+    updateMediaDuration: (d: number) => void;
 
-    watchAvailable: boolean
+    watchAvailable: boolean;
+
+    audioTracks: AudioTrackInfo[] | null;
+    subtitleTracks: SubtitleTrackInfo[] | null;
+    setAudioTracks: (t: AudioTrackInfo[] | null) => void;
+    setSubtitleTracks: (t: SubtitleTrackInfo[] | null) => void;
 }

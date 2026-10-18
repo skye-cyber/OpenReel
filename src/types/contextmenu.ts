@@ -15,6 +15,7 @@ export interface ContextMenuSubmenu {
     icon?: keyof typeof import('../lib/Icons').paths;
     separatorBefore?: boolean;
     items: ContextMenuItem[];
+    className?: string;
 }
 
 export interface ContextMenuSeparator {
@@ -33,6 +34,7 @@ export interface ContextMenuProps {
     position: ContextMenuPosition;
     entries: ContextMenuEntry[];
     onClose: () => void;
+    className?: string;
 }
 
 export type ContextMenuPayload = unknown;

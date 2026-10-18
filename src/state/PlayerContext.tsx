@@ -36,6 +36,7 @@ import {
     type ScanResult,
 } from '../lib/platform/library';
 import { pickFolder, labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
+import type { AudioTrackInfo, SubtitleTrackInfo } from '../types/mkvSource';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
 
@@ -52,6 +53,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const [playing, _setPlaying] = useState(false);
     const [pos, setPos] = useState(0);
     const [audioTrack, setAudioTrack] = useState(0);
+    const [audioTracks, setAudioTracks] = useState<AudioTrackInfo[]>([]);
+    const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrackInfo[]>([]);
+    /*
+     -1 means "Off"
+     0 means the first subtitle *track (English in the demo)
+     1 means the second (German)
+     */
     const [subTrack, setSubTrack] = useState(-1);
     const [queue, setQueue] = useState<QueueItem[]>(QUEUE_SEED);
     const [queueIndex, setQueueIndex] = useState(0);
@@ -200,6 +208,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     itemCount: f.itemCount,
                 })),
                 repositories,
+                subTrack,
             });
         }, 300);
         return () => clearTimeout(t);
@@ -880,7 +889,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playing, setPlaying, syncPlayingFromElement, pos, dur, setPos, vol, setVol, muted, setMuted,
         speed, setSpeed, audioTrack, setAudioTrack, subTrack, setSubTrack,
         // queue
-        queue, queueIndex, playQueueItem, nextItem, prevItem,
+        queue, setQueue, queueIndex, playQueueItem, nextItem, prevItem,
         // panels
         queueOpen, setQueueOpen, advanced, setAdvanced,
         // status
@@ -925,7 +934,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         repositories, catalogs, repositoriesLoading, repositoryError,
         // Folder management
         addFolderFromPicker, removeFolder, removeLibrary, folders,
-        registerVideoElement, updateMediaDuration, watchAvailable
+        registerVideoElement, updateMediaDuration, watchAvailable,
+        audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks
     }), [
         // ---- Must mirror the value object field-for-field ----
         theme, themePref, systemDark,
@@ -965,7 +975,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         repositories, catalogs, repositoriesLoading, repositoryError,
         // Folder management
         addFolderFromPicker, removeFolder, removeLibrary, folders,
-        registerVideoElement, updateMediaDuration, watchAvailable
+        registerVideoElement, updateMediaDuration, watchAvailable,
+        audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks
     ]);
 
     return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

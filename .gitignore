@@ -50,3 +50,5 @@ keystore.properties
 *docx
 *.odt
 *.zip
+
+public/

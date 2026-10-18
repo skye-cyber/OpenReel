@@ -6,12 +6,11 @@ import { SubmenuRow } from '../ContextMenu/Submenu';
 import { ItemRow } from '../ContextMenu/ItemRow';
 
 
-export function ContextMenu({ position, entries, onClose }: ContextMenuProps) {
+export function ContextMenu({ position, entries, onClose, className }: ContextMenuProps) {
     const ref = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLElement | null>(null);
     const { pushEscapeHandler, popEscapeHandler } = usePlayer();
     const escapeId = useRef(`ctxmenu-${Math.random().toString(36).slice(2)}`).current;
-
     // Register with the escape stack — Escape closes only this menu.
     useEffect(() => {
         pushEscapeHandler(escapeId, onClose);
@@ -47,7 +46,11 @@ export function ContextMenu({ position, entries, onClose }: ContextMenuProps) {
         const onDown = (e: MouseEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) onClose();
         };
-        const onScroll = () => onClose();
+        const onScroll = (e: Event) => {
+            if (ref.current?.contains(e.target as Node)) return;
+            onClose();
+        };
+
         const onResize = () => onClose();
         const onContext = (e: MouseEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) onClose();
@@ -114,8 +117,7 @@ export function ContextMenu({ position, entries, onClose }: ContextMenuProps) {
         <div
             ref={ref}
             role="menu"
-            className="fixed min-w-[200px] bg-surface border border-border-2 rounded-lg shadow-lg p-1 z-300
-                 animate-menu-in"
+            className={`fixed min-w-[200px] bg-surface border border-border-2 rounded-lg shadow-lg p-1 z-300 animate-menu-in ${className}`}
             style={{ left: adjusted.x, top: adjusted.y, transformOrigin: 'top left' }}
         >
             {entries.map((entry, i) => {
@@ -123,7 +125,7 @@ export function ContextMenu({ position, entries, onClose }: ContextMenuProps) {
                     return <div key={i} className="h-px bg-border my-1 mx-2" />;
                 }
                 if (entry.kind === 'submenu') {
-                    return <SubmenuRow key={i} entry={entry} />;
+                    return <SubmenuRow key={i} entry={entry} />
                 }
                 return <ItemRow key={i} entry={entry} onSelect={onClose} />;
             })}

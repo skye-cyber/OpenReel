@@ -32,6 +32,7 @@
     "@tauri-apps/plugin-opener": "^2.5.5",
     "@tauri-apps/plugin-shell": "^2.3.6",
     "@tauri-apps/plugin-store": "^2.4.5",
+    "libav-wasm": "^0.8.11",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.3.3"

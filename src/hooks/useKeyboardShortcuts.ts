@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { usePlayer } from '../hooks/player';
+import { usePlayer } from './player';
 
 /**
  * Global keyboard shortcut handler for OpenReel.

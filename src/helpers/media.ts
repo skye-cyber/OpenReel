@@ -92,3 +92,22 @@ export const getMediaInfo = (m: Media): MediaInfo => {
         ],
     };
 };
+
+
+export function formatTrackLabel(language: string | null, title: string | null, fallback: string): string {
+    if (language && title) return `${language} · ${title}`;
+    if (language) return language.toUpperCase();
+    if (title) return title;
+    return fallback;
+}
+
+export const LANG_NAMES: Record<string, string> = {
+    eng: 'English', ger: 'German', deu: 'German', fre: 'French', fra: 'French',
+    spa: 'Spanish', ita: 'Italian', jpn: 'Japanese', chi: 'Chinese', zho: 'Chinese',
+    kor: 'Korean', rus: 'Russian', por: 'Portuguese', ara: 'Arabic', hin: 'Hindi',
+};
+
+export function displayLanguage(code: string | null): string | null {
+    if (!code) return null;
+    return LANG_NAMES[code.toLowerCase()] ?? code.toUpperCase();
+}

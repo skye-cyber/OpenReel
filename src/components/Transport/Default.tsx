@@ -7,26 +7,27 @@ import { Menu, MenuHead, MenuItem, MenuSep } from '../Menu';
 import { fmt } from '../../lib/format';
 import { AdvancedRow } from '../Transport/Row';
 import { Pill } from './Pill';
+import type { SubtitleTrackInfo, AudioTrackInfo } from '../../types/mkvSource';
 
 type OpenMenu = 'speed' | 'audio' | 'subs' | null;
 
-const AUDIO_TRACKS = [
-    { i: 0, n: 'English', c: 'AC-3 · 5.1 · 48 kHz', def: true },
-    { i: 1, n: 'German', c: 'AC-3 · 5.1 · 48 kHz' },
-    { i: 2, n: 'Commentary', c: 'AAC · stereo · 48 kHz' },
-] as const;
+const FALLBACK_AUDIO_TRACKS = [
+    { streamIndex: 0, language: 'English', title: 'English' },
+    { streamIndex: 1, language: 'German', title: 'German' },
+    { streamIndex: 2, language: 'Commentary', title: 'Commentary' },
+] as any as AudioTrackInfo[];
 
-const SUB_TRACKS = [
-    { i: 0, n: 'English', c: 'SRT · embedded' },
-    { i: 1, n: 'German', c: 'SRT · embedded' },
-    { i: 2, n: 'English (forced)', c: 'ASS · embedded' },
-] as const;
-
+const FALLBACK_SUB_TRACKS = [
+    { streamIndex: 0, language: 'English', title: 'English', format: 'SRT · embedded', cues: [] },
+    { streamIndex: 1, language: 'German', title: 'German', format: 'SRT · embedded', cues: [] },
+    { streamIndex: 2, language: 'English (forced)', title: 'English (forced)', format: 'ASS · embedded', cues: [] },
+] as any as SubtitleTrackInfo[];
 
 export function Transport() {
     const p = usePlayer();
     const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
-
+    const AUDIO_TRACKS = p.audioTracks //?? FALLBACK_AUDIO_TRACKS;
+    const SUB_TRACKS = p.subtitleTracks //?? FALLBACK_SUB_TRACKS;
     const dur = p.media?.dur ?? 0;
     const toggle = (name: Exclude<OpenMenu, null>) =>
         setOpenMenu(prev => (prev === name ? null : name));
@@ -108,20 +109,20 @@ export function Transport() {
                             title="Audio track"
                             onClick={() => toggle('audio')}
                         />
-                        <Menu open={openMenu === 'audio'} onClose={() => setOpenMenu(null)}>
+                        <Menu className='h-fit max-h-80 overflow-y-auto' open={openMenu === 'audio'} onClose={() => setOpenMenu(null)}>
                             <MenuHead>Audio track</MenuHead>
-                            {AUDIO_TRACKS.map(t => (
+                            {AUDIO_TRACKS && AUDIO_TRACKS?.map(t => (
                                 <MenuItem
-                                    key={t.i}
-                                    tick={p.audioTrack === t.i}
-                                    sub={'def' in t && t.def ? 'Default' : t.c}
+                                    key={t.streamIndex}
+                                    tick={p.audioTrack === t.streamIndex}
+                                    sub={t.title as string}
                                     onClick={() => {
-                                        p.setAudioTrackAnnounced(t.i);
+                                        p.setAudioTrackAnnounced(t.streamIndex);
                                         setOpenMenu(null);
-                                        p.toast(`Audio: ${t.n} — Undo`);
+                                        p.toast(`Audio: ${t.language} — Undo`);
                                     }}
                                 >
-                                    {t.n}
+                                    {t.language}
                                 </MenuItem>
                             ))}
                         </Menu>
@@ -136,24 +137,24 @@ export function Transport() {
                             title="Subtitles"
                             onClick={() => toggle('subs')}
                         />
-                        <Menu open={openMenu === 'subs'} onClose={() => setOpenMenu(null)}>
+                        <Menu className='h-fit max-h-80 overflow-y-auto' open={openMenu === 'subs'} onClose={() => setOpenMenu(null)}>
                             <MenuHead>Subtitles</MenuHead>
                             <MenuItem tick={p.subTrack === -1} onClick={() => { p.setSubTrackAnnounced(-1); setOpenMenu(null); }}>
                                 Off
                             </MenuItem>
                             <MenuSep />
-                            {SUB_TRACKS.map(t => (
+                            {SUB_TRACKS && SUB_TRACKS?.map(t => (
                                 <MenuItem
-                                    key={t.i}
-                                    tick={p.subTrack === t.i}
-                                    sub={t.c}
+                                    key={t.streamIndex}
+                                    tick={p.subTrack === t.streamIndex}
+                                    sub={t.title as string}
                                     onClick={() => {
-                                        p.setSubTrackAnnounced(t.i);
+                                        p.setAudioTrackAnnounced(t.streamIndex);
                                         setOpenMenu(null);
-                                        p.toast(`Subtitles: ${t.n} — Undo`);
+                                        p.toast(`Audio: ${t.language} — Undo`);
                                     }}
                                 >
-                                    {t.n}
+                                    {t.language}
                                 </MenuItem>
                             ))}
                             <MenuSep />

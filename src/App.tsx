@@ -8,7 +8,7 @@ import { QueuePanel } from './components/QueuePanel';
 import { ToastStack } from './components/Toast';
 import { ModalRoot } from './components/Modal';
 import ViewSwitch from './views';
-import { useKeyboardShortcuts } from './state/useKeyboardShortcuts';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LiveRegion } from './components/Live';
 import { UrlDialog } from './components/UrlDialog';
