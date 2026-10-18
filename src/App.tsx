@@ -13,6 +13,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { LiveRegion } from './components/Live';
 import { UrlDialog } from './components/UrlDialog';
 import { MediaInfo } from './components/MediaInfo';
+import { CrashRecoveryModal } from './components/CrashRecoveryModal';
+import type { SafeModeReason } from './lib/platform/system';
 
 function Shell() {
     const { queueOpen, urlDialogOpen, setUrlDialogOpen, mediaInfoOpen } = usePlayer();
@@ -42,14 +44,23 @@ function Shell() {
             <ToastStack />
             <LiveRegion />
             {urlDialogOpen && <UrlDialog onClose={() => setUrlDialogOpen(false)} />}
+            <CrashRecoveryModal />
             <ModalRoot />
         </div>
     );
 }
 
-export default function App() {
+interface AppProps {
+    initialSafeMode: boolean;
+    initialSafeModeReason: SafeModeReason | null;
+}
+
+export default function App({ initialSafeMode, initialSafeModeReason }: AppProps) {
     return (
-        <PlayerProvider>
+        <PlayerProvider
+            initialSafeMode={initialSafeMode}
+            initialSafeModeReason={initialSafeModeReason}
+        >
             <Shell />
         </PlayerProvider>
     );

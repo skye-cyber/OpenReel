@@ -2,6 +2,7 @@ import { Group, Row } from "./Shared";
 import { Button } from "../Button";
 import { useState } from "react";
 import { Seg } from "../Segment";
+import { openPath } from "../../lib/platform/shell";
 
 export function AdvancedPanel() {
     const [level, setLevel] = useState<'error' | 'warn' | 'info' | 'debug'>('info');
@@ -28,7 +29,7 @@ export function AdvancedPanel() {
             <Row
                 title="Open config folder"
                 desc="Contains settings, plugin state, and the library index."
-                control={<Button size="sm" icon="folder">Open folder</Button>}
+                control={<Button size="sm" onClick={() => void openPath('')} icon="folder">Open folder</Button>}
             />
 
             <Group>Settings</Group>

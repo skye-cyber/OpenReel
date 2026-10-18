@@ -9,6 +9,7 @@ import type { Settings, SettingKey, Cat } from "./settings";
 import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
 import type { Folder } from "../lib/platform/library";
 import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
+import type { SafeModeReason } from "../lib/platform/system";
 
 
 export interface MediaInfoStream {
@@ -183,8 +184,14 @@ export interface PlayerState {
 
     watchAvailable: boolean;
 
-    audioTracks: AudioTrackInfo[] | null;
-    subtitleTracks: SubtitleTrackInfo[] | null;
-    setAudioTracks: (t: AudioTrackInfo[] | null) => void;
-    setSubtitleTracks: (t: SubtitleTrackInfo[] | null) => void;
+    audioTracks: AudioTrackInfo[];
+    subtitleTracks: SubtitleTrackInfo[];
+    setAudioTracks: (t: AudioTrackInfo[]) => void;
+    setSubtitleTracks: (t: SubtitleTrackInfo[]) => void;
+
+    // Crash session
+    safeMode: boolean;
+    safeModeReason: SafeModeReason | null;
+    enterSafeMode: (reason: SafeModeReason) => void;
+    exitSafeModeAndReload: () => void;
 }

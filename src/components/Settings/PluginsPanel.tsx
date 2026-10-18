@@ -4,7 +4,12 @@ import { Switch } from '../Switch';
 import { usePlayer } from "../../hooks/player";
 
 export function PluginsPanel() {
-    const { settings, setSetting, isChanged, resetSetting, toast } = usePlayer();
+    const {
+        settings, setSetting,
+        isChanged, resetSetting,
+        toast, enterSafeMode,
+        safeMode, exitSafeModeAndReload
+    } = usePlayer();
 
     return (
         <>
@@ -52,15 +57,40 @@ export function PluginsPanel() {
             />
 
             <Group>Recovery</Group>
-            <Row
-                title="Safe mode"
-                desc="Starts OpenReel with all plugins disabled. Useful when a plugin prevents startup."
-                control={
-                    <Button size="sm" icon="refresh" onClick={() => toast('Restart in safe mode is not implemented yet')}>
-                        Restart in safe mode
-                    </Button>
-                }
-            />
+            {safeMode ?
+                <Row
+                    title="Safe mode"
+                    desc="Starts OpenReel with all plugins Enabled."
+                    control={
+                        <Button
+                            size="sm"
+                            icon="refresh"
+                            onClick={() => {
+                                exitSafeModeAndReload()
+                            }}
+                        >
+                            Exit safe mode
+                        </Button>
+                    }
+                />
+                :
+                < Row
+                    title="Safe mode"
+                    desc="Starts OpenReel with all plugins disabled. Useful when a plugin prevents startup."
+                    control={
+                        <Button
+                            size="sm"
+                            icon="refresh"
+                            onClick={() => {
+                                enterSafeMode('user');
+                                window.location.reload();
+                            }}
+                        >
+                            Restart in safe mode
+                        </Button>
+                    }
+                />
+            }
         </>
     );
 }

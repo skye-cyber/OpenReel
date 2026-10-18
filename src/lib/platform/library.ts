@@ -112,11 +112,11 @@ export async function scanOne(
  * moved, removed, or renamed within the folder. Currently a no-op that
  * never fires; the app treats this as "watching unavailable on this build."
  */
-export function watchFolder(
-    _folder: Folder,
-    _onChange: () => void,
-): () => void {
-    return () => { /* no-op */ };
+export async function watchFolder(_folder: Folder, _onChange: () => void): Promise<() => void> {
+    // TODO(tauri): invoke('watch_folder', { path }) returns a subscription
+    // id; register an event listener for 'folder-changed' events matching
+    // that id; the returned function invokes('unwatch_folder', { id }).
+    return () => {};
 }
 
 /**

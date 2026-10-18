@@ -1,13 +1,12 @@
 /**
- * Position resume storage.
+ * Position resume storage — in-memory.
  *
- * TODO(tauri): shall be backed this with a real persistent store once Tauri is
- * integrated. The store should be keyed by a stable media identifier
- * (currently `Media.title`, later a content hash or file path), and
- * should be pruned when the underlying file disappears.
- *
- * The current implementation is in-memory only. Positions survive
- * within a session but not across reloads.
+ * TODO(tauri): add a persistent backing store. The in-memory `Session`
+ * stays — it's the fast path during a session. A separate async layer
+ * (SessionStore) seeds it on startup and persists debounced writes.
+ * PlayerContext uses the in-memory `Session` synchronously, and calls
+ * SessionStore.save() on a debounce. Only SessionStore changes when
+ * Tauri lands.
  */
 
 const positions = new Map<string, number>();

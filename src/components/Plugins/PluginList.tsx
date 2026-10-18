@@ -18,7 +18,12 @@ const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
 ];
 
 export function PluginsList() {
-    const { plugins, setModal, setPluginEnabled, selectPlugin, settings, setSetting, setSettingCat, setView } = usePlayer();
+    const {
+        plugins, setModal, setPluginEnabled,
+        selectPlugin, settings, setSetting,
+        setSettingCat, setView, safeMode,
+        exitSafeModeAndReload,
+    } = usePlayer();
     const [q, setQ] = useState('');
     const [filter, setFilter] = useState<Filter>('all');
 
@@ -60,7 +65,10 @@ export function PluginsList() {
         attention: plugins.filter(p => p.st !== 'ok').length,
     }), [plugins]);
 
-    if (!settings.pluginsEnabled) {
+    if (!settings.pluginsEnabled || safeMode) {
+        const reason = safeMode
+            ? 'Safe mode is active — plugins are disabled to prevent another crash.'
+            : 'Plugins are turned off in Settings.';
         return (
             <div className="p-6.5 px-8 pb-10 max-w-[720px]">
                 <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Plugins</h1>
@@ -68,30 +76,35 @@ export function PluginsList() {
                     Optional extensions. OpenReel plays media without any of them.
                 </p>
 
-                <div className="flex items-start gap-3 p-[14px_16px] rounded-md text-[12.5px] leading-relaxed
-            bg-surface-2 border border-border mb-4.5">
-                    <Icon name="plug" size={16} className="text-text-3 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 p-[14px_16px] rounded-md text-[12.5px]
+                leading-relaxed bg-surface-2 border border-border mb-4.5">
+                    <Icon name={safeMode ? 'warn' : 'plug'} size={16} className={`${safeMode ? 'text-warning' : 'text-text-3'} shrink-0 mt-0.5`} />
                     <div className="flex-1">
-                        <div className="font-semibold mb-1">Plugins are turned off</div>
-                        <div className="text-text-2">
-                            No plugins are loaded or available to the player. Your installed plugins remain on disk
-                            and will be available again when you turn this back on.
+                        <div className="font-semibold mb-1">
+                            {safeMode ? 'Safe mode is active' : 'Plugins are turned off'}
                         </div>
+                        <div className="text-text-2">{reason}</div>
                     </div>
-                    <Button size="sm" onClick={() => setSetting('pluginsEnabled', true)}>
-                        Turn on plugins
-                    </Button>
+                    {safeMode ? (
+                        <Button size="sm" onClick={exitSafeModeAndReload}>Restart normally</Button>
+                    ) : (
+                        <Button size="sm" onClick={() => setSetting('pluginsEnabled', true)}>
+                            Turn on plugins
+                        </Button>
+                    )}
                 </div>
 
-                <div className="text-[11.5px] text-text-3">
-                    Manage this setting in <button
-                        onClick={() => {
-                            setView('settings')
-                            setSettingCat('plugins')
-                        }}
-                        className="text-accent hover:underline"
-                    >Settings → Plugins</button>.
-                </div>
+                {!safeMode && (
+                    <div className="text-[11.5px] text-text-3">
+                        Manage this setting in <button
+                            onClick={() => {
+                                setView('settings')
+                                setSettingCat('plugins')
+                            }}
+                            className="text-accent hover:underline"
+                        >Settings → Plugins</button>.
+                    </div>
+                )}
             </div>
         );
     }

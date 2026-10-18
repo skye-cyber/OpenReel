@@ -59,7 +59,7 @@ interface InstallModalProps { onClose: () => void; onInstall: () => void }
 
 function InstallModal({ onClose, onInstall }: InstallModalProps) {
     const [ack, setAck] = useState(false);
-    const { settings, toast } = usePlayer();
+    const { settings, toast, safeMode } = usePlayer();
 
     const permissions: ReadonlyArray<{ icon: IconName; label: string; risk: 'High' | 'Medium' | 'Low' }> = [
         { icon: 'external', label: 'Connect to the internet', risk: 'High' },
@@ -68,6 +68,7 @@ function InstallModal({ onClose, onInstall }: InstallModalProps) {
     ];
 
     const handleInstall = () => {
+        if(safeMode) return toast('System is in safe mode - restart to disable', 'err');
         if (!settings.pluginsEnabled) {
             toast('Plugins are turned off — enable them first', 'err');
             return;

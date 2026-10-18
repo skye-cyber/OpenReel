@@ -147,6 +147,17 @@ export const KNOWN_REPOSITORY_CHOICES: Repository[] = [
     KNOWN_REPOSITORIES['extras']!,
 ];
 
+/**
+ * List the plugin repositories available to add.
+ *
+ * TODO(tauri): invoke('list_known_repositories') — reads from a
+ * config file or a registry endpoint. Currently returns a static
+ * list of the two demo repositories.
+ */
+export async function getKnownRepositories(): Promise<Repository[]> {
+    return KNOWN_REPOSITORY_CHOICES;
+}
+
 /* ============================================================
  *  Fetch one repository
  *  ============================================================ */

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
 import { usePlayer } from "../hooks/player";
+import type { HardwareProbe, PlatformInfo } from '../types/platform';
+import { platformtools } from '../lib/platform/system';
+import { openExternal } from '../lib/platform/shell';
 
 type Tab = 'about' | 'diag' | 'feed';
 
@@ -12,7 +15,21 @@ const TABS: ReadonlyArray<{ id: Tab; l: string }> = [
 ];
 
 export default function About() {
-    const { aboutTab: tab, setAboutTab: setTab } = usePlayer();
+    const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null);
+    const [probe, setProbe] = useState<HardwareProbe | null>(null);
+    const { aboutTab: tab, setAboutTab: setTab, plugins } = usePlayer();
+
+    useEffect(() => {
+        if (tab !== 'diag') return;
+        void (async () => {
+            const [info, hw] = await Promise.all([
+                platformtools.getPlatformInfo(),
+                platformtools.probeHardwareDecoding(),
+            ]);
+            setPlatformInfo(info);
+            setProbe(hw);
+        })();
+    }, [tab])
 
     return (
         <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
@@ -23,9 +40,9 @@ export default function About() {
                 {TABS.map(t => (
                     <button
                         key={t.id}
-                        onClick={() => {setTab(t.id); console.log(tab, t.id);}}
+                        onClick={() => { setTab(t.id); console.log(tab, t.id); }}
                         className={`relative px-3.5 py-2.5 text-[12.5px] font-[550] transition-colors
-                ${tab === t.id
+                        ${tab === t.id
                                 ? 'text-text after:content-[\'\'] after:absolute after:left-2.5 after:right-2.5 after:-bottom-px after:h-0.5 after:bg-accent after:rounded'
                                 : 'text-text-3 hover:text-text-2'}`}
                     >
@@ -37,8 +54,7 @@ export default function About() {
             {tab === 'about' && (
                 <>
                     <div className="bg-surface border border-border rounded-lg p-[22px_24px] mb-5.5 flex items-center gap-5">
-                        <div className="w-14 h-14 rounded-2xl bg-accent-dim border border-border-2 flex items-center justify-center
-            text-accent shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-accent-dim border border-border-2 flex items-center justify-center text-accent shrink-0">
                             <Icon name="disc" size={26} />
                         </div>
                         <div className="flex-1">
@@ -52,18 +68,29 @@ export default function About() {
 
                     <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 mb-2.5">Build</div>
                     <Dl rows={[
-                        ['Version', '1.4.2'],
-                        ['Build date', '14 September 2026'],
-                        ['Commit', '8f3c1a7'],
-                        ['Qt / toolkit', 'Not applicable — native frontend'],
-                        ['Plugin API', '1.4 (supports 1.0 – 1.4)'],
-                        ['Licence', 'GPL-3.0-or-later'],
+                        ['Operating system', platformInfo ? `${platformInfo.os} ${platformInfo.osVersion}` : '—'],
+                        ['Session', platformInfo?.session ?? '—'],
+                        ['GPU', platformInfo?.gpu ?? '—'],
+                        ['Hardware decoding', probe
+                            ? probe.available
+                                ? `${probe.backend} · ${probe.codecs.join(', ')}`
+                                : 'Unavailable — software decoding only'
+                            : '—'],
+                        ['Audio backend', platformInfo?.audioBackend ?? '—'],
+                        ['Display scaling', platformInfo ? `${Math.round(platformInfo.displayScaling * 100)}%` : '—'],
+                        ['Plugins loaded', `${plugins.filter(p => p.on).length} of ${plugins.length} installed`],
                     ]} />
 
                     <div className="flex gap-2 mt-5">
-                        <Button size="sm" icon="external">Website</Button>
-                        <Button size="sm" icon="external">Source code</Button>
-                        <Button size="sm" icon="external">Issue tracker</Button>
+                        <Button disabled={true} size="sm" icon="external" onClick={() => void openExternal('https://openreel.example.org')}>
+                            Website
+                        </Button>
+                        <Button size="sm" icon="external" onClick={() => void openExternal('https://github.com/skye-cyber/OpenReel.git')}>
+                            Source Code
+                        </Button>
+                        <Button size="sm" icon="external" onClick={() => void openExternal('https://github.com/skye-cyber/OpenReel/issues')}>
+                            Issue tracker
+                        </Button>
                     </div>
                 </>
             )}
@@ -88,8 +115,7 @@ export default function About() {
                         <button className="text-[11px] text-text-2 hover:text-text">Save log…</button>
                         <button className="text-[11px] text-text-2 hover:text-text">Open folder</button>
                     </div>
-                    <div className="bg-[#08090b] border border-border rounded-md p-3 px-3.5 font-mono text-[11.5px] leading-loose
-            max-h-[260px] overflow-y-auto text-[#8f98a3]">
+                    <div className="bg-[#08090b] border border-border rounded-md p-3 px-3.5 font-mono text-[11.5px] leading-loose max-h-[260px] overflow-y-auto text-[#8f98a3]">
                         {[
                             ['14:02:09', 'i', 'OpenReel 1.4.2 starting (Wayland session)'],
                             ['14:02:09', 'i', 'VA-API initialised: Intel Iris Xe, 3 decode profiles'],

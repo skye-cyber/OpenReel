@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icon from '../../lib/Icons';
 import { Button, IconButton } from '../Button';
 import { usePlayer } from '../../hooks/player';
 import {
+    getKnownRepositories,
     KNOWN_REPOSITORY_CHOICES,
 } from '../../lib/platform/plugins';
-import type { AvailableEntry } from '../../types/plugins';
+import type { AvailableEntry, Repository } from '../../types/plugins';
 import { RepositoryInstallModal } from './RepositoryInstall';
 import { AvailableRow } from './Row';
 
@@ -21,6 +22,11 @@ export function Available({ query }: AvailableProps) {
 
     const [pendingInstall, setPendingInstall] = useState<AvailableEntry | null>(null);
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const [knownChoices, setKnownChoices] = useState<Repository[]>([]);
+
+    useEffect(() => {
+        void getKnownRepositories().then(setKnownChoices);
+    }, []);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -32,7 +38,7 @@ export function Available({ query }: AvailableProps) {
         );
     }, [availableEntries, query]);
 
-    const unusedChoices = KNOWN_REPOSITORY_CHOICES.filter(
+    const unusedChoices = knownChoices.filter(
         c => !repositories.some(r => r.id === c.id),
     );
 
