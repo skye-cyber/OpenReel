@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "preview": "vite preview",
+    "dev:react": "vite",
     "dev:tauri": "tauri dev",
     "build": "npm run clean && npm run type-check && npm run build:all",
     "build:all": "npm-run-all build:node build:react build:tauri",
