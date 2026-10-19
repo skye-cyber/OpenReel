@@ -112,7 +112,7 @@ export default defineConfig({
         sourcemap: !!process.env.TAURI_ENV_DEBUG,
 
         // Match tauri.conf.json -> build.frontendDist
-        outDir: resolve(import.meta.dirname, 'dist'),
+        outDir: resolve(import.meta.dirname, 'build'),
         emptyOutDir: true,
 
         rollupOptions: {
