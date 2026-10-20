@@ -40,7 +40,7 @@ export function Transport() {
     }, []);
 
     return (
-        <div className="shrink-0 bg-surface border-t border-border relative z-50">
+        <div className="shrink-0 bg-surface border-t border-border relative z-50 select-none">
             {p.advanced && <AdvancedRow />}
 
             <div className="flex items-center gap-4 h-[66px] px-[18px]">

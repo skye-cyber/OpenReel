@@ -27,8 +27,8 @@ class PlatformToolsImpl {
     async pickFile(): Promise<string | null> {
         return invoke<string | null>('pick_file');
     }
-    async pickFiles(): Promise<string | null> {
-        return invoke<string | null>('pick_files');
+    async pickFiles(): Promise<string[] | null> {
+        return invoke<string[] | null>('pick_files');
     }
     async openExternal(url: string): Promise<void> {
         if (isTauri) return invoke('open_url', { url });

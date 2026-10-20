@@ -10,7 +10,7 @@ export function TitleBar() {
     const [open, setOpen] = useState(false);
 
     return (
-        <div className="h-[42px] shrink-0 flex items-center gap-3.5 px-3.5 bg-surface border-b border-border relative z-60 select-none">
+        <div className="h-[42px] shrink-0 flex items-center gap-3.5 px-3.5 bg-surface border-b border-border relative z-60 select-none select-none">
             <div className="flex gap-2 items-center">
                 {[0, 1, 2].map(i => (
                     <span

@@ -87,7 +87,7 @@ export function useKeyboardShortcuts() {
                     case '3': e.preventDefault(); p.setView('plugins'); return;
                     case '4': e.preventDefault(); p.setView('settings'); return;
                     case ',': e.preventDefault(); p.setView('settings'); return;
-                    case 'o': e.preventDefault(); p.setView('open'); return;
+                    case 'o': e.preventDefault(); void p.openFiles(); return;
                     case 'f':
                         e.preventDefault();
                         {

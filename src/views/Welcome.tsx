@@ -18,7 +18,7 @@ export default function Welcome() {
     return (
         <div className="min-h-full flex items-center justify-center p-10 px-6 relative
         before:content-[''] before:absolute before:inset-0 before:pointer-events-none
-        before:bg-[radial-gradient(600px_340px_at_50%_22%,var(--color-accent-soft),transparent_70%)]">
+        before:bg-[radial-gradient(600px_340px_at_50%_22%,var(--color-accent-soft),transparent_70%)] select-none">
             <div className="w-full max-w-[560px] relative">
                 <h1 className="text-[26px] font-[680] tracking-[-.03em] mb-2">Welcome to OpenReel</h1>
                 <p className="text-[13.5px] text-text-2 mb-6 max-w-[46ch]">

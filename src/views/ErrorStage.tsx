@@ -114,7 +114,7 @@ export default function ErrorStage({ media }: { media: ErrorMedia }) {
     };
 
     return (
-        <div className="p-3.5 flex flex-col gap-3.5 h-full min-h-0">
+        <div className="p-3.5 flex flex-col gap-3.5 h-full min-h-0 select-none">
             <div className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border border-border
         shadow-[0_20px_50px_rgba(0,0,0,.45)]">
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-5

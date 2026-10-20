@@ -63,7 +63,7 @@ export default function About() {
     }
 
     return (
-        <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
+        <div className="p-6.5 px-8 pb-10 max-w-[1180px] select-none">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">About OpenReel</h1>
             <p className="text-[12.5px] text-text-2 mb-5.5">Version <span className='text-success font-semibold'>{version}</span> · OS <span className='text-accent'>{platformInfo?.os}</span></p>
 

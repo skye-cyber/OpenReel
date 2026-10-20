@@ -1,5 +1,4 @@
-import type { LibraryRow, Media, OpenFileRow, QueueItem, RecentItem } from '../types';
-import { AUDIO, VIDEO } from '../data/mock';
+import type { Media } from '../types';
 import { toMediaUrl } from '../lib/mediaPath';
 // import { toMediaUrl } from '../lib/mediaPath';
 
@@ -12,59 +11,36 @@ export function parseDur(d: string): number {
     return 0;
 }
 
-export async function mediaFromLibraryRow(row: LibraryRow): Promise<Media> {
-    const id = row.p;
-    const dur = parseDur(row.d);
-    const isAudio = /\.(flac|wav|mp3|m4a|ogg|opus)$/i.test(row.p);
-    const url = await toMediaUrl(row.p);
-    return isAudio
-        ? { ...AUDIO, id, url, title: row.t, dur }
-        : { ...VIDEO, id, url, title: row.t, dur };
-}
-
-export async function mediaFromOpenFile(row: OpenFileRow): Promise<Media> {
-    const dur = parseDur(row.d);
-    const isAudio = row.k === 'audio';
-    const id = row.n;
-    const url = await toMediaUrl(row.n);
-    return isAudio
-        ? { ...AUDIO, id, url, title: row.n, dur }
-        : { ...VIDEO, id, url, title: row.n, dur };
-}
-
-export async function mediaFromRecentItem(row: RecentItem): Promise<Media> {
-    const id = row.p //+ '/' + row.n;
-    const dur = parseDur(row.d);
-    const url = await toMediaUrl(id);
-    return row.k === 'audio'
-        ? { ...AUDIO, id, url, title: row.n, dur }
-        : { ...VIDEO, id, url, title: row.n, dur };
-}
-
-export async function mediaFromQueueItem(item: QueueItem): Promise<Media> {
-    const id = item.n;
-    const dur = parseDur(item.d);
-    const isAudio = /\.(flac|wav|mp3|m4a|ogg|opus)$/i.test(item.n);
-    const url = await toMediaUrl(item.n);
-    return isAudio
-        ? { ...AUDIO, id, url, title: item.n, dur }
-        : { ...VIDEO, id, url, title: item.n, dur };
-}
-
 
 export async function mediaFromPath(path: string): Promise<Media> {
     const filename = path.split(/[\\/]/).pop() ?? path;
     const ext = filename.split('.').pop()?.toLowerCase() ?? '';
     const isAudio = ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'wma', 'aiff', 'aif'].includes(ext);
-
-    const id = path;
     const url = await toMediaUrl(path);
-    const title = filename;
-    const dur = 0;
 
-    return isAudio
-        ? { ...AUDIO, id, url, title, dur }
-        : { ...VIDEO, id, url, title, dur };
+    if (isAudio) {
+        return {
+            kind: 'audio',
+            id: path,
+            url,
+            title: filename,
+            artist: '',
+            album: '',
+            year: new Date().getFullYear(),
+            dur: 0,
+            meta: '',
+        };
+    }
+
+    return {
+        kind: 'video',
+        id: path,
+        url,
+        title: filename,
+        sub: '',
+        dur: 0,
+        codec: '',
+    };
 }
 
 

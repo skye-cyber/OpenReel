@@ -1,7 +1,6 @@
 import { usePlayer } from "../hooks/player";
 import Welcome from './Welcome';
 import NowPlaying from './NowPlaying';
-import OpenView from './OpenView';
 import Library from './Library';
 import Settings from './Settings';
 import Plugins from './Plugins';

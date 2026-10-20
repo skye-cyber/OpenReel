@@ -87,7 +87,7 @@ export function LibraryGrid({
             role="grid"
             aria-rowcount={Math.ceil(rows.length / COLS)}
             aria-colcount={COLS}
-            className="grid gap-3.5 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]"
+            className="grid gap-3.5 grid-cols-[repeat(auto-fill,minmax(180px,1fr))] select-none"
         >
             {rows.map((r, i) => {
                 const active = i === selected;

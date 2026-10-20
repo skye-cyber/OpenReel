@@ -245,6 +245,42 @@ fn make_log_dir() -> PathBuf {
 */
 fn build_app() -> tauri::Builder<tauri::Wry> {
   let builder = tauri::Builder::default()
+  // MUST be first. Before other plugins, before .manage().
+  .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+    // argv[0] is the executable path. Everything after is file args.
+    let paths: Vec<String> = argv
+    .into_iter()
+    .skip(1)
+    .filter(|a| !a.starts_with('-'))
+    .collect();
+
+    if paths.is_empty() {
+      // No file args — just focus the existing window.
+      if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+      }
+      return;
+    }
+
+    // Store the paths so the frontend can read them when it's ready.
+    if let Some(state) = app.try_state::<StartupFiles>() {
+      if let Ok(mut pending) = state.paths.lock() {
+        pending.extend(paths.clone());
+      }
+    }
+
+    // Emit an event so the running frontend picks them up immediately.
+    let _ = app.emit("single-instance-files", paths);
+
+    // Focus the window.
+    if let Some(window) = app.get_webview_window("main") {
+      let _ = window.unminimize();
+      let _ = window.show();
+      let _ = window.set_focus();
+    }
+  }))
   .plugin(tauri_plugin_opener::init())
   .plugin(tauri_plugin_dialog::init())
   .plugin(tauri_plugin_fs::init())
@@ -297,6 +333,9 @@ pub fn run() {
   .manage(commands::audio::AudioState {
     selected_device: std::sync::Mutex::new(None),
   })
+  .manage(commands::startup::StartupFiles {
+    paths: std::sync::Mutex::new(Vec::new()),
+  })
   .invoke_handler(tauri::generate_handler![
     get_app_version,
     get_dev_status,
@@ -332,9 +371,25 @@ pub fn run() {
     commands::audio::list_audio_devices,
     commands::audio::set_audio_device,
     commands::audio::get_audio_device,
+    commands::startup::get_startup_files,
   ])
     .setup(|app| {
       let handle = app.handle().clone();
+
+      /*
+       * skip(1) skips the executable path. On Linux, argv[0] is the binary path. On macOS, argv[0] is also the binary path. On Windows, argv[0] is the exe. argv[1..] are the file paths the OS passes.
+       *
+       A rgs that aren't file paths. Some launches include flags like --flag or a scheme URL. Filter out anything that starts with -, and treat anything that looks like a path as a file*
+       */
+      let args: Vec<String> = std::env::args().skip(1).collect();
+      if !args.is_empty() {
+        if let Some(state) = app.try_state::<commands::startup::StartupFiles>() {
+          if let Ok(mut paths) = state.paths.lock() {
+            *paths = args;
+          }
+        }
+      }
+
       let handle_for_server = handle.clone();
 
       // 1. Start the stream server.

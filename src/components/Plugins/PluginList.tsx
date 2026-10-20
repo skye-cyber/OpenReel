@@ -30,18 +30,18 @@ export function PluginsList() {
     const installed = useMemo(() => {
         const query = q.trim().toLowerCase();
         return plugins.filter(p => {
-            if (query && !p.n.toLowerCase().includes(query)) return false;
+            if (query && !p.name.toLowerCase().includes(query)) return false;
 
             switch (filter) {
                 case 'enabled':
-                    return p.st === 'ok' && p.on;
+                    return p.status === 'ok' && p.on;
 
                 case 'disabled':
                     // "Disabled" means: not currently running AND not blocked by
                     // a problem the user hasn't addressed. A failed or conflicting
                     // plugin that's turned off is still "needs attention" — the
                     // user has an outstanding decision — so it doesn't belong here.
-                    return !p.on && p.st === 'ok';
+                    return !p.on && p.status === 'ok';
 
                 case 'attention':
                     // Anything the user needs to act on: a conflict, a load
@@ -49,7 +49,7 @@ export function PluginsList() {
                     // OK but is somehow off when the user expected it on.
                     // (The last case doesn't occur in the current data, but the
                     // predicate is written so it stays true if it ever does.)
-                    return p.st === 'conflict' || p.st === 'failed' || p.st === 'incompat';
+                    return p.status === 'conflict' || p.status === 'failed' || p.status === 'incompat';
 
                 case 'all':
                 default:
@@ -60,9 +60,9 @@ export function PluginsList() {
 
     const counts = useMemo(() => ({
         all: plugins.length,
-        enabled: plugins.filter(p => p.st === 'ok' && p.on).length,
-        disabled: plugins.filter(p => !p.on && p.st === 'ok').length,
-        attention: plugins.filter(p => p.st !== 'ok').length,
+        enabled: plugins.filter(p => p.status === 'ok' && p.on).length,
+        disabled: plugins.filter(p => !p.on && p.status === 'ok').length,
+        attention: plugins.filter(p => p.status !== 'ok').length,
     }), [plugins]);
 
     if (!settings.pluginsEnabled || safeMode) {
@@ -70,7 +70,7 @@ export function PluginsList() {
             ? 'Safe mode is active — plugins are disabled to prevent another crash.'
             : 'Plugins are turned off in Settings.';
         return (
-            <div className="p-6.5 px-8 pb-10 max-w-[720px]">
+            <div className="p-6.5 px-8 pb-10 max-w-[720px] select-none">
                 <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Plugins</h1>
                 <p className="text-[12.5px] text-text-2 mb-5.5">
                     Optional extensions. OpenReel plays media without any of them.
@@ -109,7 +109,7 @@ export function PluginsList() {
         );
     }
     return (
-        <div className="p-6.5 px-8 pb-10 max-w-[1180px] h-[90%] overflow-y-auto">
+        <div className="p-6.5 px-8 pb-10 max-w-[1180px] h-[90%] overflow-y-auto select-none">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Plugins</h1>
             <p className="text-[12.5px] text-text-2 mb-5.5">
                 Optional extensions. OpenReel plays media without any of them.

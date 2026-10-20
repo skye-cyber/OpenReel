@@ -12,8 +12,7 @@ import { openExternal } from "../../lib/platform/shell";
 
 export function PluginDetail({ id }: { id: string }) {
     const {
-        plugins, selectPlugin, setPluginEnabled, setConfirmUninstallId,
-        toast, pushEscapeHandler, popEscapeHandler, resolveConflict,
+        plugins, selectPlugin, setPluginEnabled, setConfirmUninstallId, pushEscapeHandler, popEscapeHandler, resolveConflict,
     } = usePlayer();
 
     const plugin = plugins.find(p => p.id === id);
@@ -27,7 +26,7 @@ export function PluginDetail({ id }: { id: string }) {
     if (!plugin) {
         // The plugin was uninstalled while we were looking at it.
         return (
-            <div className="p-6.5 px-8 pb-10 max-w-[880px]">
+            <div className="p-6.5 px-8 pb-10 max-w-[880px] select-none">
                 <div className="py-16 text-center">
                     <div className="text-[12.5px] text-text-2 mb-3">This plugin is no longer installed.</div>
                     <Button size="sm" onClick={() => selectPlugin(null)}>Back to plugins</Button>
@@ -37,7 +36,7 @@ export function PluginDetail({ id }: { id: string }) {
     }
 
     return (
-        <div className="p-6.5 px-8 pb-10 max-w-[880px]">
+        <div className="p-6.5 px-8 pb-10 max-w-[880px] select-none">
             {/* Header */}
             <div className="flex items-center gap-3 mb-5">
                 <button
@@ -56,14 +55,14 @@ export function PluginDetail({ id }: { id: string }) {
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-[17px] font-[680] tracking-[-.015em] mb-1 flex items-center gap-2.5 flex-wrap">
-                        {plugin.n}
-                        <StatusChip status={plugin.st} on={plugin.on} />
+                        {plugin.name}
+                        <StatusChip status={plugin.status} on={plugin.on} />
                     </div>
                     <div className="text-[12.5px] text-text-2 mb-2">
-                        {plugin.p} · v{plugin.v} {plugin.apiVersion && <>· API {plugin.apiVersion}</>}
+                        {plugin.provider} · v{plugin.version} {plugin.apiVersion && <>· API {plugin.apiVersion}</>}
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Chip style={{ height: 20, fontSize: 10.5 }}>{plugin.c}</Chip>
+                        <Chip style={{ height: 20, fontSize: 10.5 }}>{plugin.category}</Chip>
                         {plugin.signed
                             ? <Chip tone="ok" style={{ height: 20, fontSize: 10.5 }}>Signed</Chip>
                             : <Chip tone="warn" icon="warn" style={{ height: 20, fontSize: 10.5 }}>Not signed</Chip>}
@@ -76,7 +75,7 @@ export function PluginDetail({ id }: { id: string }) {
                 <Button
                     variant="primary"
                     size="sm"
-                    disabled={plugin.st === 'incompat'}
+                    disabled={plugin.status === 'incompat'}
                     onClick={() => setPluginEnabled(plugin.id, !plugin.on)}
                 >
                     {plugin.on ? 'Disable' : 'Enable'}
@@ -95,12 +94,12 @@ export function PluginDetail({ id }: { id: string }) {
             </div>
 
             {/* Conflict resolution — only shown when there's a conflict to resolve */}
-            {plugin.st === 'conflict' && (
+            {plugin.status === 'conflict' && (
                 <ConflictPanel plugin={plugin} onResolve={resolveConflict} />
             )}
 
             {/* Failure notice — only shown when the plugin is in a failed state */}
-            {plugin.st === 'failed' && plugin.err && (
+            {plugin.status === 'failed' && plugin.err && (
                 <div className="rounded-md p-[12px_14px] mb-6 bg-danger-dim border border-[rgba(224,100,92,.3)]
                         text-[12px] leading-relaxed text-text">
                     <b>Failed to load.</b> {plugin.err}

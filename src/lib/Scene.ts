@@ -2,8 +2,8 @@ import type { Scene } from "../types";
 
 export const SCENES: Scene[] = [
     { id: 'welcome', l: '1 · Welcome' },
-    { id: 'empty', l: '2 · Nothing playing' },
-    { id: 'open', l: '3 · Open file' },
+    // { id: 'empty', l: '2 · Nothing playing' },
+    { id: 'empty', l: '3 · Open file' },
     { id: 'video', l: '4 · Video playback' },
     { id: 'audio', l: '5 · Audio playback' },
     { id: 'tracks', l: '6 · Track menus' },

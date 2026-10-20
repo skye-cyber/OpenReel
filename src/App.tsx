@@ -14,12 +14,17 @@ import { LiveRegion } from './components/Live';
 import { UrlDialog } from './components/UrlDialog';
 import { MediaInfo } from './components/MediaInfo';
 import { CrashRecoveryModal } from './components/CrashRecoveryModal';
-import type { SafeModeReason } from './lib/platform/system/shared';
+import { type SafeModeReason } from './lib/platform/system/shared';
 import type { PersistedPrefs } from './types/persists';
+import { DropOverlay } from './components/DropOverlay';
+import { useDragDrop } from './hooks/useDragDrop';
+import { StartupFilesHandler } from './lib/startup';
 
 function Shell() {
     const { queueOpen, urlDialogOpen, setUrlDialogOpen, mediaInfoOpen } = usePlayer();
     useKeyboardShortcuts();
+    const { openDroppedFiles } = usePlayer();
+    const { dragging } = useDragDrop(openDroppedFiles);
 
     return (
         <div className="relative h-screen flex flex-col bg-app">
@@ -47,6 +52,7 @@ function Shell() {
             {urlDialogOpen && <UrlDialog onClose={() => setUrlDialogOpen(false)} />}
             <CrashRecoveryModal />
             <ModalRoot />
+            {dragging && <DropOverlay />}
         </div>
     );
 }
@@ -69,6 +75,7 @@ export default function App({
             initialSafeModeReason={initialSafeModeReason}
         >
             <Shell />
+            <StartupFilesHandler />
         </PlayerProvider>
     );
 }

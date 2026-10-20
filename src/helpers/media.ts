@@ -150,3 +150,51 @@ export function guessFrameRate(_media: Media): string {
     // Return a placeholder.
     return '—';
 }
+
+
+export function computeNextIndex(
+    length: number,
+    current: number,
+    shuffle: boolean,
+    repeat: 'off' | 'all' | 'one',
+    shuffled: number[] | null,
+): number | null {
+    if (length === 0) return null;
+
+    if (shuffle && shuffled) {
+        const posInShuffle = shuffled.indexOf(current);
+        const nextPos = posInShuffle + 1;
+        if (nextPos < shuffled.length) return shuffled[nextPos]!;
+        if (repeat === 'all') {
+            // Reshuffle and start over.
+            return shuffled[0]!;
+        }
+        return null;
+    }
+
+    const next = current + 1;
+    if (next < length) return next;
+    if (repeat === 'all') return 0;
+    return null;
+}
+
+export function computePrevIndex(
+    length: number,
+    current: number,
+    shuffle: boolean,
+    repeat: 'off' | 'all' | 'one',
+    shuffled: number[] | null,
+): number | null {
+    if (length === 0) return null;
+
+    if (shuffle && shuffled) {
+        const posInShuffle = shuffled.indexOf(current);
+        const prevPos = posInShuffle - 1;
+        if (prevPos >= 0) return shuffled[prevPos]!;
+        return repeat === 'all' ? shuffled[shuffled.length - 1]! : null;
+    }
+
+    const prev = current - 1;
+    if (prev >= 0) return prev;
+    return repeat === 'all' ? length - 1 : null;
+}

@@ -15,7 +15,7 @@ export default function Settings() {
     }, [q])
 
     return (
-        <div className="flex h-full min-h-0">
+        <div className="flex h-full min-h-0 select-none">
             <SideNav
                 cat={cat}
                 setCat={setCat}
@@ -29,6 +29,7 @@ export default function Settings() {
                         placeholder="Search settings…"
                         value={q}
                         onValue={setQ}
+                        className='select-text'
                     />
                 </div>
 

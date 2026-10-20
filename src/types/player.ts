@@ -50,6 +50,7 @@ export interface PlayerState {
 
     media: Media | null;
     playMedia: (m: Media) => void;
+    playMediaInternal: (m: Media, source: 'direct' | 'queue') => void;
     setMedia: (m: Media | null) => void;
     hasMedia: boolean;
 
@@ -210,4 +211,17 @@ export interface PlayerState {
 
     recentIds: string[];
     clearRecents: () => void;
+
+    openFiles: () => void;
+    shuffle: boolean;
+    // setShuffle: (s: boolean) => void;
+    repeat: 'off' | 'all' | 'one';
+    setRepeat: (v: 'off' | 'all' | 'one') => void;
+    toggleShuffle: () => void;
+    cycleRepeat: () => void;
+    removeQueueItem: (index: number) => void;
+    clearQueue: () => void;
+    queueMoveToTop: (index: number) => void;
+    queueMoveNext: (index: number) => void;
+    openDroppedFiles: async (paths: string[]) => void;
 }

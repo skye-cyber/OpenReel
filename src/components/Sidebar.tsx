@@ -2,8 +2,6 @@ import Icon from "../lib/Icons";
 import { usePlayer } from "../hooks/player";
 import type { ViewId, IconName } from "../types";
 import { isTauri } from "../lib/platform/system/shared";
-import { mediaFromPath } from "../helpers/herpers";
-import { PlatformTools } from "../lib/platform/system/tools";
 
 interface NavItem { id: ViewId; l: string; ic: IconName }
 interface NavGroup { group: string; items: NavItem[] }
@@ -21,13 +19,12 @@ const NAV: NavGroup[] = [
 
 
 export function Sidebar() {
-    const { view, setView, playMedia } = usePlayer();
+    const { view, setView, openFiles } = usePlayer();
     const handleOpenFile = async () => {
         if (isTauri) {
-            const path = await PlatformTools.pickFile();
-            if (path) playMedia(await mediaFromPath(path));
+            void openFiles()
         } else {
-            setView('open');
+            setView('now');
         }
     };
 

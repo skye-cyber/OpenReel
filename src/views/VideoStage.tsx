@@ -198,7 +198,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             <div
                 id="openreel-stage"
                 onContextMenu={e => openCtx(e, undefined)}
-                className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border-0 border-border shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0"
+                className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border-0 border-border shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0 select-none"
             >
                 <div className="flex-1 relative">
                     <video

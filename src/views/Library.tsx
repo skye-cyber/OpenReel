@@ -110,7 +110,7 @@ export default function Library() {
             : `${p.libraryMeta.folders} folder${p.libraryMeta.folders === 1 ? '' : 's'} · ${p.libraryMeta.itemCount.toLocaleString()} items · last scan ${formatRelative(p.libraryMeta.lastScanAt)}`;
 
     return (
-        <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
+        <div className="p-6.5 px-8 pb-10 max-w-[1180px] select-none">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Library</h1>
             <p className="text-[12.5px] text-text-2 mb-5.5">{metaLine}</p>
 

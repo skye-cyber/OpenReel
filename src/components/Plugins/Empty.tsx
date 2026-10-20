@@ -14,7 +14,7 @@ export function EmptyState({ query, filter }: { query: string; filter: Filter })
     })();
 
     return (
-        <div className="py-10 text-center text-[12.5px] text-text-2">
+        <div className="py-10 text-center text-[12.5px] text-text-2 select-none">
             {message}
         </div>
     );

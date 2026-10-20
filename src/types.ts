@@ -4,7 +4,6 @@ export type ThemePref = Theme | 'system';
 export type ViewId =
     | 'welcome'
     | 'now'
-    | 'open'
     | 'library'
     | 'settings'
     | 'plugins'
@@ -111,10 +110,12 @@ export interface LibraryRow {
 }
 
 export interface QueueItem {
-    n: string;
-    d: string;
-    on?: boolean;
-    bad?: boolean;
+  /** Stable key — the media id. Used for dedupe. */
+  id: string;
+  /** The full media object. */
+  media: Media;
+  /** When this item was added, epoch ms. Used for "added" ordering if needed. */
+  addedAt: number;
 }
 
 export type PluginStatus = 'ok' | 'conflict' | 'failed' | 'incompat';
@@ -221,4 +222,9 @@ export interface AudioDevice {
     id: string,
     name: string,
     isDefault: string,
+}
+
+export interface DragDropPayload {
+  paths: string[];   // absolute filesystem paths
+  position: { x: number; y: number };  // screen coordinates of the drop
 }

@@ -28,7 +28,7 @@ export const paths = {
     warn: <g><path d="M10.3 3.9 2.5 17.4a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9.2v4.4M12 17.2h.01" /></g>,
     search: <g><circle cx="11" cy="11" r="6.8" /><path d="m20.2 20.2-4.4-4.4" /></g>,
     shuffle: <g><path d="M17 4.4 20.4 7.8 17 11.2" /><path d="M3.6 7.8h3.1c1.5 0 2.9.7 3.8 1.9l3 4.1a4.7 4.7 0 0 0 3.8 1.9h3.1" /><path d="M17 16.2l3.4 3.4L17 23" /><path d="M3.6 19.7h3.1c1.5 0 2.9-.7 3.8-1.9l.7-1" /><path d="M14.4 9.2l.6-.8a4.7 4.7 0 0 1 3.8-1.9h1.6" /></g>,
-    repeat: <g><path d="m17 2.8 3.2 3.2L17 9.2" /><path d="M3.8 12.6V10a4 4 0 0 1 4-4h12.4" /><path d="M7 21.2 3.8 18 7 14.8" /><path d="M20.2 11.4V14a4 4 0 0 1-4 4H3.8" /></g>,
+    repeat2: <g><path d="m17 2.8 3.2 3.2L17 9.2" /><path d="M3.8 12.6V10a4 4 0 0 1 4-4h12.4" /><path d="M7 21.2 3.8 18 7 14.8" /><path d="M20.2 11.4V14a4 4 0 0 1-4 4H3.8" /></g>,
     folder: <path d="M3.4 7.2a2 2 0 0 1 2-2h3.5l2 2.4h7.7a2 2 0 0 1 2 2v7.2a2 2 0 0 1-2 2H5.4a2 2 0 0 1-2-2z" />,
     film: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="Film" > <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M7 3v18M3 7h4M3 12h4M3 17h4M17 3v18M17 7h4M17 12h4M17 17h4" /> </svg>,
     music: <g><path d="M9.2 18.4V6.2l10-2v12.2" /><circle cx="6.6" cy="18.4" r="2.6" /><circle cx="16.6" cy="16.4" r="2.6" /></g>,
@@ -48,6 +48,9 @@ export const paths = {
     clock: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" /></svg>,
     trash: <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" className='fill-current dark:fill-none stroke-red-500 dark:strokek-current' aria-hidden="true" > <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /> </svg>,
     shield: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" > <path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /> </svg>,
+    repeat:  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Repeat" > <path d="m17 2 4 4-4 4" /> <path d="M3 11V9a3 3 0 0 1 3-3h15" /> <path d="m7 22-4-4 4-4" /> <path d="M21 13v2a3 3 0 0 1-3 3H3" /> </svg>,
+    repeat1: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Repeat one" > <path d="m17 2 4 4-4 4" /> <path d="M3 11V9a3 3 0 0 1 3-3h15" /> <path d="m7 22-4-4 4-4" /> <path d="M21 13v2a3 3 0 0 1-3 3H3" /> <path d="M11 10h1v4" /> <path d="M11 14h2" /> </svg>
+
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof paths;

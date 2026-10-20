@@ -2,10 +2,9 @@ import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
 import { usePlayer } from '../hooks/player';
 import { mediaFromPath } from '../helpers/herpers';
-import { PlatformTools } from '../lib/platform/system/tools';
 
 export function EmptyState() {
-    const { playMedia, recentIds, clearRecents, toast, setUrlDialogOpen } = usePlayer();
+    const { playMedia, recentIds, clearRecents, toast, setUrlDialogOpen , openFiles} = usePlayer();
 
     const handlePlayRecent = async (id: string) => {
         try {
@@ -19,7 +18,7 @@ export function EmptyState() {
     return (
         <div className="min-h-full flex flex-col items-center justify-center p-12 px-6 relative
         before:content-[''] before:absolute before:inset-0 before:pointer-events-none
-        before:bg-[radial-gradient(520px_300px_at_50%_32%,var(--color-accent-soft),transparent_72%)]">
+        before:bg-[radial-gradient(520px_300px_at_50%_32%,var(--color-accent-soft),transparent_72%)] select-none">
             <div className="relative flex flex-col items-center">
                 <div className="w-16.5 h-16.5 rounded-[20px] flex items-center justify-center bg-surface border border-border-2 text-text-3 mb-5 shadow-sm">
                     <Icon name="disc" size={28} weight={1.5} />
@@ -30,12 +29,7 @@ export function EmptyState() {
                 </p>
 
                 <div className="flex gap-2.5 mb-8">
-                    <Button variant="primary" icon="folder" onClick={async () => {
-                        const path = await PlatformTools.pickFile();
-                        if (path) {
-                            playMedia(await mediaFromPath(path));
-                        }
-                    }}
+                    <Button variant="primary" icon="folder" onClick={() => void openFiles()}
                     >Open File…</Button>
                     <Button icon="link" onClick={() => setUrlDialogOpen(true)}>Open URL…</Button>
                 </div>

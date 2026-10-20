@@ -13,7 +13,6 @@ import type {
     ScanState,
     LibraryMeta
 } from '../types';
-import { AUDIO, ERROR_MEDIA, VIDEO, QUEUE as QUEUE_SEED, PLUGINS, ERROR_MISSING, ERROR_PERMISSION, ERROR_CORRUPT, ERROR_NO_AUDIO, ERROR_VIDEO_OUT, ERROR_PLUGIN } from '../data/mock';
 import { fmt } from '../lib/format';
 import {
     DEFAULT_SETTINGS,
@@ -23,7 +22,7 @@ import {
 } from '../types/settings';
 import { Session } from '../lib/platform/session';
 import type { PlayerState } from '../types/player';
-import { mediaFromQueueItem } from '../helpers/herpers';
+import { mediaFromPath } from '../helpers/herpers';
 import {
     DEFAULT_FOLDERS,
     librarymanager,
@@ -38,6 +37,7 @@ import { savePrefs } from './persistSettings';
 import type { Folder } from '../types';
 import { listen } from '@tauri-apps/api/event';
 import type { MediaProbe } from '../types/library';
+import { computeNextIndex, computePrevIndex } from '../helpers/media';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
 
@@ -75,8 +75,13 @@ export function PlayerProvider({
          1 means the second (German)
          */
         const [subTrack, setSubTrack] = useState(-1);
-        const [queue, setQueue] = useState<QueueItem[]>(QUEUE_SEED);
-        const [queueIndex, setQueueIndex] = useState(0);
+        const [queue, setQueue] = useState<QueueItem[]>([]);
+        // queueIndex = -1 means nothing is playing from the queue
+        const [queueIndex, setQueueIndex] = useState<number>(-1);
+        const [shuffle, setShuffle] = useState(false);
+        const [repeat, setRepeat] = useState<'off' | 'all' | 'one'>('off');
+        // For shuffle: the shuffled order of indices. null when shuffle is off.
+        const shuffleOrderRef = useRef<number[] | null>(null);
         const [queueOpen, setQueueOpen] = useState(false);
         const [advanced, setAdvanced] = useState(false);
         const [buffering, setBuffering] = useState(false);
@@ -137,10 +142,11 @@ export function PlayerProvider({
             The .map() filter is necessary. If a plugin was uninstalled in a previous session, its key is still in the persisted map. The map from PLUGINS (which is the source of installed plugins) skips unknown ids.
         */
         const [plugins, setPlugins] = useState<Plugin[]>(() => {
-            const persisted = prefs.plugins ?? {};
-            return PLUGINS.map(p =>
-                p.id in persisted ? { ...p, on: persisted[p.id]! } : p
-            );
+            const _plugins = prefs.plugins ?? [];
+            return _plugins
+            // return PLUGINS.map(p =>
+            //     p.id in persisted ? { ...p, on: persisted[p.id]! } : p
+            // );
         });
 
         const [settings, setSettings] = useState<Settings>(() => ({
@@ -220,6 +226,14 @@ export function PlayerProvider({
             }
         }, [media, setMedia]);
 
+        // syncs media when queueIndex changes
+        useEffect(() => {
+            if (queueIndex < 0 || queueIndex >= queue.length) return;
+            const item = queue[queueIndex];
+            if (item && item.media.id !== media?.id) {
+                playMediaInternal(item.media, 'queue');
+            }
+        }, [queueIndex, queue]);
 
         useEffect(() => {
             if (libraryMeta.lastScanAt !== null) return;
@@ -552,7 +566,7 @@ export function PlayerProvider({
         durRef.current = dur;
         mediaRef.current = media;
 
-        const playMedia = useCallback((m: Media) => {
+        const playMediaInternal = useCallback((m: Media, source: 'queue' | 'direct') => {
             // Save outgoing item's position before we replace it.
             const oldMedia = mediaRef.current;
             const oldPos = posRef.current;
@@ -593,6 +607,89 @@ export function PlayerProvider({
             setScene(m.kind === 'audio' ? 'audio' : 'video');
         }, [setMedia, setView, settings.resumeEnabled, settings.resumeThreshold, toast]);
 
+        const playMedia = useCallback((m: Media) => {
+            const existingIdx = queue.findIndex(q => q.id === m.id);
+            if (existingIdx >= 0) {
+                setQueueIndex(existingIdx);
+                return;
+            }
+
+            const item: QueueItem = { id: m.id, media: m, addedAt: Date.now() };
+            setQueue(prev => [...prev, item]);
+            setQueueIndex(queue.length);
+        }, [queue]);
+
+        /**
+         * Avoid cases where if playMedia is called twice in the same tick with different media, the second call's queue.length is still the pre-update value. The second item gets newIndex equal to the first item's index. Both point to the same slot.
+         */
+        const playMediaEdge = useCallback((m: Media) => {
+            const existingIdx = queue.findIndex(q => q.id === m.id);
+            if (existingIdx >= 0) {
+                setQueueIndex(existingIdx);
+                return;
+            }
+
+            const item: QueueItem = { id: m.id, media: m, addedAt: Date.now() };
+            setQueue(prev => {
+                const next = [...prev, item];
+                // Compute the index for this specific update.
+                const idx = next.length - 1;
+                // Schedule the index change as a follow-up.
+                Promise.resolve().then(() => setQueueIndex(idx));
+                return next;
+            });
+        }, [queue]);
+
+        const appendAndPlay = useCallback((media: Media[]) => {
+            if (media.length === 0) return;
+
+            const existing = new Set(queue.map(q => q.id));
+            const fresh = media.filter(m => !existing.has(m.id));
+            if (fresh.length === 0) {
+                toast('Those files are already in the queue', 'err');
+                return;
+            }
+
+            const items: QueueItem[] = fresh.map(m => ({
+                id: m.id,
+                media: m,
+                addedAt: Date.now(),
+            }));
+            const startIndex = queue.length;
+            setQueue(prev => [...prev, ...items]);
+            setQueueIndex(startIndex);
+
+            toast(
+                fresh.length === 1
+                    ? `Added "${fresh[0]!.title}"`
+                    : `Added ${fresh.length} files to the queue`,
+            );
+        }, [queue, toast]);
+
+        const openFiles = useCallback(async () => {
+            const paths = await PlatformTools.pickFiles();
+            if (!paths || paths.length === 0) return;
+            const media = await Promise.all(paths.map(p => mediaFromPath(p)));
+            appendAndPlay(media);
+        }, [appendAndPlay]);
+
+        const openDroppedFiles = useCallback(async (paths: string[]) => {
+            // Filter by extension — dropping a folder or a non-media file should not be silently ignored, but should not try to play either.
+            const MEDIA_EXTS = new Set([
+                'mkv', 'mp4', 'm4v', 'webm', 'mov', 'avi', 'flv', 'wmv', 'ogv',
+                'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'wma',
+            ]);
+            const mediaPaths = paths.filter(p => {
+                const ext = p.split('.').pop()?.toLowerCase() ?? '';
+                return MEDIA_EXTS.has(ext);
+            });
+            if (mediaPaths.length === 0) {
+                toast('No media files in the drop', 'err');
+                return;
+            }
+            const media = await Promise.all(mediaPaths.map(p => mediaFromPath(p)));
+            appendAndPlay(media);
+        }, [appendAndPlay, toast]);
 
         const consumePendingPlayback = useCallback(() => {
             const seek = pendingSeekRef.current;
@@ -665,46 +762,235 @@ export function PlayerProvider({
         /* --------------------------------------------------------
          *    Queue navigation
          *    -------------------------------------------------------- */
-        const playQueueItem = useCallback(async (i: number) => {
+        const playQueueItem = useCallback((i: number) => {
             const item = queue[i];
-            if (!item || item.bad) {
-                if (item?.bad) toast(`Skipped “${item.n}” — unplayable`, 'err');
+            if (!item) return;
+
+            // Unplayable items are skipped visually but calling Play on one
+            // is a no-op with a toast.
+            if (item.media.kind === 'error') {
+                toast(`Can't play "${item.media.title}"`, 'err');
                 return;
             }
+
             setQueueIndex(i);
-            // ses the helper instead of the inline heuristic
-            playMedia(await mediaFromQueueItem(item));
-        }, [queue, playMedia, toast]);
+            // The queueIndex effect fires playMediaInternal(item.media).
+            // No need to call playMedia here — that would re-append to the queue.
+        }, [queue, toast]);
 
         const nextItem = useCallback(() => {
             if (queue.length === 0) return;
-            for (let step = 1; step <= queue.length; step++) {
-                const i = (queueIndex + step) % queue.length;
-                const candidate = queue[i];
-                if (candidate && !candidate.bad) {
-                    playQueueItem(i);
-                    return;
-                }
+
+            if (repeat === 'one' && queueIndex >= 0) {
+                // Replay current.
+                playMediaInternal(queue[queueIndex]!.media, 'queue');
+                return;
             }
-            toast('No playable items in queue', 'err');
-        }, [queue, queueIndex, playQueueItem, toast]);
+
+            const nextIdx = computeNextIndex(queue.length, queueIndex, shuffle, repeat, shuffleOrderRef.current);
+            if (nextIdx === null) {
+                // Reached end, repeat off.
+                _setPlaying(false);
+                return;
+            }
+            setQueueIndex(nextIdx);
+        }, [queue, queueIndex, shuffle, repeat, playMediaInternal]);
 
         const prevItem = useCallback(() => {
             if (queue.length === 0) return;
-            // Restart current item if we're more than set duration=3s in.
-            if (settings.previousRestartsCurrent && pos * dur > 3) {
-                setPos(0);
+
+            // If past 3 seconds, restart current.
+            if (pos * dur > 3) {
+                seekTo(0);
                 return;
             }
-            for (let step = 1; step <= queue.length; step++) {
-                const i = (queueIndex - step + queue.length) % queue.length;
-                const candidate = queue[i];
-                if (candidate && !candidate.bad) {
-                    playQueueItem(i);
-                    return;
+
+            const prevIdx = computePrevIndex(queue.length, queueIndex, shuffle, repeat, shuffleOrderRef.current);
+            if (prevIdx === null) {
+                seekTo(0);
+                return;
+            }
+            setQueueIndex(prevIdx);
+        }, [queue, queueIndex, pos, dur, seekTo, shuffle, repeat]);
+
+        const rebuildShuffleOrder = useCallback((length: number, currentIndex: number): number[] => {
+            const idxs = Array.from({ length }, (_, i) => i);
+            // Fisher-Yates.
+            for (let i = idxs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [idxs[i], idxs[j]] = [idxs[j]!, idxs[i]!];
+            }
+            // Current item at the front so "next" starts from the second.
+            if (currentIndex >= 0 && currentIndex < length) {
+                const curPos = idxs.indexOf(currentIndex);
+                if (curPos > 0) {
+                    [idxs[0], idxs[curPos]] = [idxs[curPos]!, idxs[0]!];
                 }
             }
-        }, [queue, queueIndex, playQueueItem, pos, dur, toast, settings.previousRestartsCurrent]);
+            return idxs;
+        }, []);
+
+        /**
+         * Move a queue item to position 0.
+         *
+         * If the item is currently playing, the currently-playing item
+         * changes position but stays playing (queueIndex updates to match
+         * the new location). If the item wasn't playing, playback continues
+         * on the current item — the current item's index shifts by +1
+         * because a new item was inserted above it.
+         */
+        const queueMoveToTop = useCallback((index: number) => {
+            if (index <= 0 || index >= queue.length) return;
+
+            setQueue(prev => {
+                const next = [...prev];
+                const [item] = next.splice(index, 1);
+                if (!item) return prev;
+                next.unshift(item);
+                return next;
+            });
+
+            setQueueIndex(prev => {
+                if (prev === index) return 0;
+                if (prev < index) return prev + 1;
+                return prev;
+            });
+
+            // Rebuild shuffle order if shuffle is on. The current playing index
+            // after the move is what we feed to rebuildShuffleOrder.
+            if (shuffleOrderRef.current) {
+                const newCurrent = queueIndex === index ? 0
+                    : queueIndex < index ? queueIndex + 1
+                        : queueIndex;
+                shuffleOrderRef.current = rebuildShuffleOrder(queue.length, newCurrent);
+            }
+        }, [queue.length, queueIndex, rebuildShuffleOrder]);
+
+        const queueMoveNext = useCallback((index: number) => {
+            if (index < 0 || index >= queue.length) return;
+
+            // The target slot is one past the current playing item.
+            // If nothing is playing, target is 0.
+            const currentPlaying = queueIndex >= 0 ? queueIndex : -1;
+            const targetIndex = currentPlaying >= 0 ? currentPlaying + 1 : 0;
+
+            // If the item is already at the target, no-op.
+            if (index === targetIndex) return;
+            // If the item is the currently playing item, can't "play it next".
+            if (index === currentPlaying) return;
+            // If the item is already the next one but the arithmetic broke because
+            // moving an earlier item forward shifts things, handle below.
+
+            setQueue(prev => {
+                const next = [...prev];
+                const [item] = next.splice(index, 1);
+                if (!item) return prev;
+                // Recompute target after removal — if index < target, target shifts by -1.
+                const adjustedTarget = index < targetIndex ? targetIndex - 1 : targetIndex;
+                next.splice(adjustedTarget, 0, item);
+                return next;
+            });
+
+            // Adjust queueIndex.
+            setQueueIndex(prev => {
+                if (prev === index) return targetIndex - (index < targetIndex ? 1 : 0);
+                if (index < targetIndex) {
+                    // Moving item from earlier to later.
+                    if (prev > index && prev <= targetIndex - 1) return prev - 1;
+                    if (prev >= targetIndex) return prev;  // wait, no shift for prev >= targetIndex
+                    // prev < index: unaffected
+                    return prev;
+                } else {
+                    // Moving item from later to earlier (index > targetIndex).
+                    if (prev >= targetIndex && prev < index) return prev + 1;
+                    // prev >= index: index item was removed, so prev decrements by 1,
+                    // then insertion at targetIndex shifts it back up by 1 if targetIndex <= prev-1.
+                    if (prev > index) return prev;  // net zero
+                    return prev;
+                }
+            });
+
+            // Rebuild shuffle order.
+            if (shuffleOrderRef.current) {
+                shuffleOrderRef.current = rebuildShuffleOrder(
+                    queue.length,
+                    // Compute new playing index the same way setQueueIndex will.
+                    currentPlaying >= 0 ? currentPlaying : -1,
+                );
+            }
+        }, [queue.length, queueIndex, rebuildShuffleOrder]);
+
+        const clearQueue = useCallback(() => {
+            setQueue([]);
+            setQueueIndex(-1);
+            shuffleOrderRef.current = null;
+
+            // Stop playback.
+            _setPlaying(false);
+            _setMedia(null);
+            setPos(0);
+            setBuffered(0);
+        }, []);
+
+        const toggleShuffle = useCallback(() => {
+            setShuffle(s => {
+                const next = !s;
+                if (next) {
+                    // Generate shuffled order, keeping current item first.
+                    const idxs = Array.from({ length: queue.length }, (_, i) => i);
+                    // Fisher-Yates shuffle.
+                    for (let i = idxs.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [idxs[i], idxs[j]] = [idxs[j]!, idxs[i]!];
+                    }
+                    // Move current item to the front so "next" starts from the second item.
+                    if (queueIndex >= 0) {
+                        const curPos = idxs.indexOf(queueIndex);
+                        if (curPos > 0) {
+                            [idxs[0], idxs[curPos]] = [idxs[curPos]!, idxs[0]!];
+                        }
+                    }
+                    shuffleOrderRef.current = idxs;
+                } else {
+                    shuffleOrderRef.current = null;
+                }
+                return next;
+            });
+        }, [queue.length, queueIndex]);
+
+        const cycleRepeat = useCallback(() => {
+            setRepeat(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off');
+        }, []);
+
+        const removeQueueItem = useCallback((index: number) => {
+            if (index < 0 || index >= queue.length) return;
+            const removingCurrent = index === queueIndex;
+
+            setQueue(prev => prev.filter((_, i) => i !== index));
+
+            // Adjust queueIndex.
+            if (removingCurrent) {
+                if (queue.length === 1) {
+                    // Last item removed — stop playback.
+                    setQueueIndex(-1);
+                    _setPlaying(false);
+                    _setMedia(null);
+                    setPos(0);
+                } else {
+                    // Play the item at the same index (which is now the next item).
+                    setQueueIndex(Math.min(index, queue.length - 2));
+                }
+            } else if (index < queueIndex) {
+                setQueueIndex(prev => prev - 1);
+            }
+
+            // Update shuffle order.
+            if (shuffleOrderRef.current) {
+                shuffleOrderRef.current = shuffleOrderRef.current
+                    .filter(i => i !== index)
+                    .map(i => i > index ? i - 1 : i);
+            }
+        }, [queue, queueIndex]);
 
         // Scan runner — one function that both startScan and addFolderFromPicker share
         const runScan = useCallback(async (targets: Folder[]) => {
@@ -940,7 +1226,7 @@ export function PlayerProvider({
                 signed: entry.signed,
                 apiVersion: entry.apiVersion,
                 size: entry.size,
-                installPath: `~/.local/share/openreel/plugins/${entry.id.replace(':', '-')}`,
+                installPath: `~/.openreel/plugins/${entry.id.replace(':', '-')}`,
                 permissions: entry.permissions,
                 hooks: entry.hooks,
                 activity: [
@@ -999,27 +1285,26 @@ export function PlayerProvider({
             switch (id) {
                 case 'welcome': setView('welcome'); setMedia(null); setQueueOpen(false); break;
                 case 'empty': setView('now'); setMedia(null); setQueueOpen(false); break;
-                case 'open': setView('open'); setMedia(null); setQueueOpen(false); break;
-                case 'video': setView('now'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
-                case 'audio': setView('now'); setMedia(AUDIO); setPlaying(true); setPos(0.31); setQueueOpen(false); break;
-                case 'tracks': setView('now'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
-                case 'queue': setView('now'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(true); break;
-                case 'library': setView('library'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
-                case 'settings': setView('settings'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
+                case 'video': setView('now'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
+                case 'audio': setView('now'); setMedia(null); setPlaying(true); setPos(0.31); setQueueOpen(false); break;
+                case 'tracks': setView('now'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
+                case 'queue': setView('now'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(true); break;
+                case 'library': setView('library'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
+                case 'settings': setView('settings'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
                 case 'plugins': setView('plugins'); setMedia(null); setQueueOpen(false); break;
                 case 'install': setView('plugins'); setMedia(null); setModal('install'); setQueueOpen(false); break;
-                case 'error': setView('now'); setMedia(ERROR_MEDIA); setQueueOpen(false); break;
-                case 'shortcuts': setView('shortcuts'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
-                case 'about': setView('about'); setMedia(VIDEO); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
-                case 'loading': setView('now'); setMedia(VIDEO); setPlaying(true); setBuffering(true); setPos(0.28); setQueueOpen(false); break;
-                case 'offline': setView('now'); setMedia(VIDEO); setPlaying(true); setOffline(true); setPos(0.28); setQueueOpen(false); break;
+                case 'error': setView('now'); setMedia(null); setQueueOpen(false); break;
+                case 'shortcuts': setView('shortcuts'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
+                case 'about': setView('about'); setMedia(null); setPlaying(true); setPos(0.28); setQueueOpen(false); break;
+                case 'loading': setView('now'); setMedia(null); setPlaying(true); setBuffering(true); setPos(0.28); setQueueOpen(false); break;
+                case 'offline': setView('now'); setMedia(null); setPlaying(true); setOffline(true); setPos(0.28); setQueueOpen(false); break;
                 // Error Cases
-                case 'error-missing': setView('now'); setMedia(ERROR_MISSING); setQueueOpen(false); break;
-                case 'error-permission': setView('now'); setMedia(ERROR_PERMISSION); setQueueOpen(false); break;
-                case 'error-corrupt': setView('now'); setMedia(ERROR_CORRUPT); setQueueOpen(false); break;
-                case 'error-no-audio': setView('now'); setMedia(ERROR_NO_AUDIO); setQueueOpen(false); break;
-                case 'error-video-out': setView('now'); setMedia(ERROR_VIDEO_OUT); setQueueOpen(false); break;
-                case 'error-plugin': setView('now'); setMedia(ERROR_PLUGIN); setQueueOpen(false); break;
+                case 'error-missing': setView('now'); setMedia(null); setQueueOpen(false); break;
+                case 'error-permission': setView('now'); setMedia(null); setQueueOpen(false); break;
+                case 'error-corrupt': setView('now'); setMedia(null); setQueueOpen(false); break;
+                case 'error-no-audio': setView('now'); setMedia(null); setQueueOpen(false); break;
+                case 'error-video-out': setView('now'); setMedia(null); setQueueOpen(false); break;
+                case 'error-plugin': setView('now'); setMedia(null); setQueueOpen(false); break;
                 default: break;
             }
         }, []);
@@ -1049,7 +1334,7 @@ export function PlayerProvider({
             // routing
             view, setView,
             // media
-            media, playMedia, setMedia, hasMedia,
+            media, playMedia, playMediaInternal, setMedia, hasMedia,
             // transport
             playing, setPlaying, syncPlayingFromElement, pos, dur, setPos, vol, setVol, muted, setMuted,
             speed, setSpeed, audioTrack, setAudioTrack, subTrack, setSubTrack,
@@ -1110,6 +1395,10 @@ export function PlayerProvider({
             libraryIndexReady, setLibraryIndexReady,
             // Recent
             recentIds, clearRecents,
+            // File opening
+            openFiles,
+            // Queue ops
+            repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem, clearQueue, queueMoveNext, queueMoveToTop, openDroppedFiles,
         }), [
             // ---- Must mirror the value object field-for-field ----
             theme, themePref, systemDark,
@@ -1126,7 +1415,7 @@ export function PlayerProvider({
             plugins, selectedPluginId, confirmUninstallId, aboutTab,
             // ---- Callbacks ----
             _setPlaying, _setMuted, _setSpeed, _setVol,
-            playMedia, playQueueItem, nextItem, prevItem,
+            playMedia, playMediaInternal, playQueueItem, nextItem, prevItem,
             applyScene, toast, dismissToast, seekBy,
             toggleFullscreen, setFullscreen,
             pushEscapeHandler, popEscapeHandler, runTopEscape,
@@ -1161,6 +1450,10 @@ export function PlayerProvider({
             mediaInfoCache,
             // Recent
             recentIds, clearRecents,
+            // File opening
+            openFiles,
+            // QUEUE ops
+            repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem, clearQueue, queueMoveToTop, queueMoveNext, openDroppedFiles
         ]);
 
         return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { IconButton } from './Button';
 import { ContextMenu } from './ContextMenu/Menu';
 import { usePlayer } from '../hooks/player';
-import type { QueueItem } from '../types';
 import type { ContextMenuEntry } from '../types/contextmenu';
 import { useContextMenu } from '../hooks/useContextMenu';
-
+import { fmt } from '../lib/format';
+import type { QueueItem } from '../types';
 
 function EqBars() {
     return (
@@ -18,95 +18,139 @@ function EqBars() {
 }
 
 export function QueuePanel() {
-    const {
-        queue, queueIndex, playQueueItem, setQueueOpen,
-        pushEscapeHandler, popEscapeHandler, setView, toast,
-    } = usePlayer();
+    const p = usePlayer();
 
     const { state: ctxMenu, open: openCtx, close: closeCtx } =
         useContextMenu<{ item: QueueItem; index: number }>();
 
     useEffect(() => {
-        pushEscapeHandler('queue', () => setQueueOpen(false));
-        return () => popEscapeHandler('queue');
-    }, [setQueueOpen, pushEscapeHandler, popEscapeHandler]);
+        p.pushEscapeHandler('queue', () => p.setQueueOpen(false));
+        return () => p.popEscapeHandler('queue');
+    }, [p.setQueueOpen, p.pushEscapeHandler, p.popEscapeHandler]);
 
-    const entriesFor = (item: QueueItem, index: number): ContextMenuEntry[] => [
-        {
-            label: 'Play now', icon: 'play', disabled: item.bad,
-            onSelect: () => playQueueItem(index),
-        },
-        {
-            label: 'Play next', disabled: item.bad,
-            onSelect: () => toast(`"${item.n}" will play next`),
-        },
-        { kind: 'separator' },
-        { label: 'Move to top', onSelect: () => toast(`"${item.n}" moved to top`) },
-        { label: 'Show in library', icon: 'grid', onSelect: () => setView('library') },
-        {
-            label: 'Copy path', icon: 'layers', onSelect: () => {
-                navigator.clipboard?.writeText(item.n).catch(() => { });
-                toast('Path copied');
+    const entriesFor = (item: QueueItem, index: number): ContextMenuEntry[] => {
+        const isBad = item.media.kind === 'error';
+        return [
+            {
+                label: 'Play now',
+                icon: 'play',
+                disabled: isBad,
+                onSelect: () => p.playQueueItem(index),
             },
-        },
-        { kind: 'separator' },
-        {
-            label: 'Remove from queue', icon: 'x', danger: true,
-            onSelect: () => toast(`Removed "${item.n}" from queue`),
-        },
-    ];
+            {
+                label: 'Play next',
+                disabled: isBad,
+                onSelect: () => p.queueMoveNext(index),
+            },
+            { kind: 'separator' },
+            {
+                label: 'Move to top',
+                onSelect: () => p.queueMoveToTop(index),
+            },
+            {
+                label: 'Show in library',
+                icon: 'grid',
+                onSelect: () => p.setView('library'),
+            },
+            {
+                label: 'Copy path',
+                icon: 'layers',
+                onSelect: () => {
+                    navigator.clipboard?.writeText(item.media.id).catch(() => { });
+                    p.toast('Path copied');
+                },
+            },
+            { kind: 'separator' },
+            {
+                label: 'Remove from queue',
+                icon: 'x',
+                danger: true,
+                onSelect: () => p.removeQueueItem(index),
+            },
+        ];
+    };
 
-    const skipped = queue.filter((q: QueueItem) => q.bad).length;
+    const unplayableCount = p.queue.filter(q => q.media.kind === 'error').length;
 
     return (
-        <aside className="w-[330px] shrink-0 flex flex-col bg-surface border-l border-border animate-slide-in">
+        <aside className="w-[330px] shrink-0 flex flex-col bg-surface border-l border-border animate-slide-in select-none">
             <div className="flex items-center gap-2 p-3 px-3.5 border-b border-border">
                 <div className="text-[12.5px] font-[650]">Queue</div>
-                <div className="text-[11px] text-text-3">{queue.length} items</div>
+                <div className="text-[11px] text-text-3">{p.queue.length} items</div>
                 <div className="flex-1" />
-                <IconButton icon="shuffle" size={15} title="Shuffle" />
-                <IconButton icon="repeat" size={15} title="Repeat: off" />
-                <IconButton icon="chevDown" size={15} title="More" />
-                <IconButton icon="x" size={15} title="Close queue" onClick={() => setQueueOpen(false)} />
+                <IconButton
+                    icon="shuffle"
+                    active={p.shuffle}
+                    size={15}
+                    title={p.shuffle ? 'Shuffle: on' : 'Shuffle: off'}
+                    onClick={p.toggleShuffle}
+                />
+                <IconButton
+                    icon={p.repeat === 'one' ? 'repeat1' : 'repeat'}
+                    active={p.repeat !== 'off'}
+                    size={15}
+                    title={`Repeat: ${p.repeat}`}
+                    onClick={p.cycleRepeat}
+                />
+                <IconButton icon="x" size={15} title="Close queue" onClick={() => p.setQueueOpen(false)} />
             </div>
 
             <div className="flex-1 overflow-y-auto p-1.5">
-                {queue.map((q: QueueItem, i: number) => {
-                    const active = i === queueIndex;
-                    return (
-                        <div
-                            key={i}
-                            onClick={() => playQueueItem(i)}
-                            onContextMenu={e => openCtx(e, { item: q, index: i })}
-                            tabIndex={0}
-                            onKeyDown={e => {
-                                if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                                    openCtx(e, { item: q, index: i });
-                                }
-                            }}
-                            className={`q-row flex items-center gap-2.5 px-2.5 py-[7px] rounded-sm text-[12.5px] cursor-pointer transition-colors hover:bg-hover focus:outline-none focus-visible:bg-surface-2
-                    ${active ? 'bg-accent-soft' : ''}`}
+                {p.queue.length === 0 ? (
+                    <div className="py-12 text-center text-[12px] text-text-3">
+                        Queue is empty.
+                        <br />
+                        <button
+                            onClick={() => void p.openFiles()}
+                            className="text-accent hover:underline mt-2"
                         >
-                            <div className="w-4 text-[11px] text-text-3 text-center shrink-0 tabular-nums">
-                                {active ? <EqBars /> : i + 1}
+                            Open files…
+                        </button>
+                    </div>
+                ) : (
+                    p.queue.map((q, i) => {
+                        const active = i === p.queueIndex;
+                        return (
+                            <div
+                                key={q.id}
+                                onClick={() => p.playQueueItem(i)}
+                                onContextMenu={e => openCtx(e, { item: q, index: i })}
+                                tabIndex={0}
+                                onKeyDown={e => {
+                                    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                                        openCtx(e, { item: q, index: i });
+                                    }
+                                }}
+                                className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-sm text-[12.5px]
+                        cursor-pointer transition-colors hover:bg-hover
+                        focus:outline-none focus-visible:bg-surface-2
+                        ${active ? 'bg-accent-soft' : ''}`}
+                            >
+                                <div className="w-4 text-[11px] text-text-3 text-center shrink-0 tabular-nums">
+                                    {active ? <EqBars /> : i + 1}
+                                </div>
+                                <div className={`flex-1 min-w-0 truncate ${active ? 'text-accent font-semibold' : ''}`}>
+                                    {q.media.title}
+                                </div>
+                                {q.media.kind === 'error' ? (
+                                    <span className="chip-base text-danger border-transparent bg-danger-dim"
+                                        style={{ height: 18, fontSize: 10 }}>
+                                        Can't play
+                                    </span>
+                                ) : (
+                                    <div className="text-[11px] text-text-3 tabular-nums">
+                                        {q.media.dur > 0 ? fmt(q.media.dur) : '—'}
+                                    </div>
+                                )}
                             </div>
-                            <div className={`flex-1 min-w-0 truncate ${active ? 'text-accent font-semibold' : ''}`}>
-                                {q.n}
-                            </div>
-                            {q.bad
-                                ? <span className="chip-base text-danger border-transparent bg-danger-dim" style={{ height: 18, fontSize: 10 }}>Can't play</span>
-                                : <div className="text-[11px] text-text-3 tabular-nums">{q.d}</div>}
-                        </div>
-                    );
-                })}
-                <div className="p-3.5 px-2.5 text-[11px] text-text-3">
-                    Drag to reorder · <span className="kbd">Alt</span> + <span className="kbd">↑</span> <span className="kbd">↓</span>
-                </div>
+                        );
+                    })
+                )}
             </div>
 
-            {skipped > 0 && (
+            {unplayableCount > 0 && (
                 <div className="p-2.5 px-3.5 border-t border-border text-[11px] text-text-3">
-                    Skipped {skipped} unplayable item{skipped === 1 ? '' : 's'}
+                    {unplayableCount} unplayable item{unplayableCount === 1 ? '' : 's'}
                 </div>
             )}
 

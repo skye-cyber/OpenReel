@@ -120,7 +120,7 @@ export function AudioStage({ media }: { media: AudioMedia }) {
     return (
         <div className="relative min-h-full flex items-center justify-center p-11 px-6 relative
         before:content-[''] before:absolute before:inset-0 before:pointer-events-none
-        before:bg-[radial-gradient(560px_340px_at_50%_30%,var(--color-accent-soft),transparent_72%)]">
+        before:bg-[radial-gradient(560px_340px_at_50%_30%,var(--color-accent-soft),transparent_72%)] select-none">
             {/* Hidden video element — carries the audio stream. */}
             <video
                 ref={setVideoRef}
