@@ -7,8 +7,7 @@ import type {
     PlatformInfo,
     UpdateCheckResult
 } from "../../../types/platform";
-import type { ScanProgress } from "../../../types";
-import type { ScanResult } from "../../../types/library";
+
 
 class PlatformToolsImpl {
     async probeHardwareDecoding(): Promise<HardwareProbe> {
@@ -55,8 +54,19 @@ class PlatformToolsImpl {
     async getSettingsFolder(): Promise<string> {
         return invoke<string>('get_base_dir');
     }
-    async scanFolder(path: string, onProgress: () => void): Promise<ScanResult | ScanProgress> {
-        return invoke<ScanResult | ScanProgress>('scan_folder', {path, onProgress});
+    async listAudioDevices(): Promise<AudioDevice[]> {
+        if (!isTauri) return [];
+        return invoke<AudioDevice[]>('list_audio_devices');
+    }
+
+    async setAudioDevice(name: string): Promise<void> {
+        if (!isTauri) return;
+        return invoke('set_audio_device', { deviceName: name });
+    }
+
+    async getAudioDevice(): Promise<string | null> {
+        if (!isTauri) return null;
+        return invoke<string | null>('get_audio_device');
     }
 }
 

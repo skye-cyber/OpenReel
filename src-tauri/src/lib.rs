@@ -2,7 +2,7 @@ mod commands;
 mod paths;
 mod stream_protocol;
 mod http_server;
-pub mod state;
+// pub mod state;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -290,6 +290,13 @@ pub fn run() {
   .manage(commands::library::WatchState {
     watchers: std::sync::Mutex::new(std::collections::HashMap::new()),
   })
+  .manage(commands::library::LibraryCache {
+    index: std::sync::Mutex::new(None),
+    scan_id: std::sync::Mutex::new(None),
+  })
+  .manage(commands::audio::AudioState {
+    selected_device: std::sync::Mutex::new(None),
+  })
   .invoke_handler(tauri::generate_handler![
     get_app_version,
     get_dev_status,
@@ -312,6 +319,7 @@ pub fn run() {
     commands::system::read_log_tail,
     commands::library::scan_folder,
     commands::library::watch_folder,
+    commands::library::get_library_meta,
     commands::library::unwatch_folder,
     commands::library::get_library_page,
     commands::library::probe_media_file,
@@ -321,11 +329,15 @@ pub fn run() {
     commands::settings::get_base_dir,
     commands::settings::reset_settings,
     http_server::get_stream_port,
+    commands::audio::list_audio_devices,
+    commands::audio::set_audio_device,
+    commands::audio::get_audio_device,
   ])
     .setup(|app| {
       let handle = app.handle().clone();
       let handle_for_server = handle.clone();
 
+      // 1. Start the stream server.
       tauri::async_runtime::spawn(async move {
         match http_server::start().await {
           Ok(addr) => {
@@ -336,36 +348,36 @@ pub fn run() {
         }
       });
 
-      /* 1. Prep the user-data tree. Uses the platform-aware resolver in `paths`, so on desktop this creates `~/.UBook` (unchanged) and on mobile it creates the sandboxed app data directory.
-     */
+      // 2. Ensure data dirs and files exist.
       if let Err(e) = paths::ensure_data_files(&handle) {
         eprintln!("failed to prepare data directory: {e}");
         log::error!("Failed to prepare data files: {}", e)
       }
+
+      // 2. Spawn the startup library scan on a worker thread.
+      //    Don't block setup — scanning a large library could take seconds.
+      let scan_handle = handle.clone();
+      tauri::async_runtime::spawn(async move {
+        commands::library::startup_scan(scan_handle).await;
+      });
+
       /* Desktop-only setup. Everything below touches APIs that are
        * `#[cfg(desktop)]`-gated inside Tauri itself (tray, window icons, global shortcuts, menu).
        **/
       #[cfg(desktop)]
       {
-        // 2. Register global shortcuts (was `setShortcuts()`).
+        // 3. Register global shortcuts (was `setShortcuts()`).
         if let Err(e) = register_shortcuts(&handle) {
           eprintln!("shortcut registration failed: {e}");
         }
 
-        // 3. Build tray.
+        // 4. Build tray.
         build_tray(&handle)?;
 
         // 4. Wire main-window close → hide-to-tray.
         wire_main_window(&handle);
       }
 
-      // if cfg!(debug_assertions) {
-      //   app.handle().plugin(
-      //     tauri_plugin_log::Builder::default()
-      //       .level(log::LevelFilter::Info)
-      //       .build(),
-      //   )?;
-      // }
       Ok(())
     })
     .run(tauri::generate_context!())

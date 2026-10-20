@@ -7,10 +7,9 @@ import { Menu, MenuHead, MenuItem, MenuSep } from '../Menu';
 import { fmt } from '../../lib/format';
 import { AdvancedRow } from '../Transport/Row';
 import { Pill } from './Pill';
-import type { SubtitleTrackInfo, AudioTrackInfo } from '../../types/mkvSource';
 
 type OpenMenu = 'speed' | 'audio' | 'subs' | null;
-
+/*
 const FALLBACK_AUDIO_TRACKS = [
     { streamIndex: 0, language: 'English', title: 'English' },
     { streamIndex: 1, language: 'German', title: 'German' },
@@ -21,7 +20,7 @@ const FALLBACK_SUB_TRACKS = [
     { streamIndex: 0, language: 'English', title: 'English', format: 'SRT · embedded', cues: [] },
     { streamIndex: 1, language: 'German', title: 'German', format: 'SRT · embedded', cues: [] },
     { streamIndex: 2, language: 'English (forced)', title: 'English (forced)', format: 'ASS · embedded', cues: [] },
-] as any as SubtitleTrackInfo[];
+] as any as SubtitleTrackInfo[];*/
 
 export function Transport() {
     const p = usePlayer();

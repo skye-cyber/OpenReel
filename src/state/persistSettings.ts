@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { clamp, clamp01 } from '../helpers/persist';
-import {  isFiniteNumber, isBooleanMap, isThemePref, validateSettings, validateLibraryMeta, validateLibraryFolders, validateRepositories } from './utils/validator';
+import { isFiniteNumber, isBooleanMap, isThemePref, validateSettings, validateLibraryMeta, validateLibraryFolders, validateRepositories, validateRecentIds } from './utils/validator';
 import { DEFAULT_PREFS } from './utils/shared';
 import { isTauri } from '../lib/platform/system/shared';
 import type { PersistedPrefs } from '../types/persists';
@@ -15,12 +15,13 @@ function validate(raw: Partial<PersistedPrefs>): PersistedPrefs {
         vol: isFiniteNumber(raw.vol) ? clamp01(raw.vol) : DEFAULT_PREFS.vol,
         muted: typeof raw.muted === 'boolean' ? raw.muted : DEFAULT_PREFS.muted,
         speed: isFiniteNumber(raw.speed) ? clamp(raw.speed, 0.25, 4) : DEFAULT_PREFS.speed,
-        plugins: isBooleanMap(raw.plugins) ? raw.plugins : {},
+        plugins: isBooleanMap(raw.plugins) ? raw.plugins : [],
         settings: validateSettings(raw.settings),
         libraryMeta: validateLibraryMeta(raw.libraryMeta),
         libraryFolders: validateLibraryFolders(raw.libraryFolders),
         repositories: validateRepositories(raw.repositories),
         subTrack: isFiniteNumber(raw.subTrack) ? Math.round(raw.subTrack) : -1,
+        recentIds: validateRecentIds(raw.recentIds ?? []),
     };
 }
 

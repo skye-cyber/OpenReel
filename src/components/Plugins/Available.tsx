@@ -4,7 +4,6 @@ import { Button, IconButton } from '../Button';
 import { usePlayer } from '../../hooks/player';
 import {
     getKnownRepositories,
-    KNOWN_REPOSITORY_CHOICES,
 } from '../../lib/platform/plugins';
 import type { AvailableEntry, Repository } from '../../types/plugins';
 import { RepositoryInstallModal } from './RepositoryInstall';

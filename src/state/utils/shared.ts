@@ -1,4 +1,4 @@
-import type { PersistedPrefs } from '../types/persists';
+import type { PersistedPrefs } from "../../types/persists";
 
 export const DEFAULT_PREFS: PersistedPrefs = {
     v: 1,
@@ -6,9 +6,11 @@ export const DEFAULT_PREFS: PersistedPrefs = {
     vol: 0.72,
     muted: false,
     speed: 1,
-    plugins: {},
+    plugins: [],
     settings: {},
     libraryMeta: { folders: 0, itemCount: 0, lastScanAt: null },
     libraryFolders: [],
     repositories: [],
+    recentIds: [],
+    subTrack: 0,
 };

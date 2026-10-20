@@ -41,7 +41,7 @@ export function PluginRow({
                 <IconButton icon="chevRight" size={15} title="Details" onClick={onDetails} />
             </div>
 
-            {p.st === 'conflict' && (
+            {p.status === 'conflict' && (
                 <div className="rounded-md p-[10px_14px] text-[12px] leading-relaxed -mt-0.5 mb-2.5
                         bg-warning-dim border border-[rgba(217,161,59,.3)] text-text">
                     <b>Conflict:</b> two plugins provide the same hook. Only one can be active.

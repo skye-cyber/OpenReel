@@ -5,3 +5,4 @@ pub mod session;
 pub mod shell;
 pub mod system;
 pub mod settings;
+pub mod audio;

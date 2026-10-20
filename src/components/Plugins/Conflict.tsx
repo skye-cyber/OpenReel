@@ -27,7 +27,7 @@ export function ConflictPanel({
       <div className="flex items-start gap-3 mb-3">
         <Icon name="warn" size={16} className="text-warning shrink-0 mt-0.5" />
         <div className="flex-1 text-[12.5px] leading-relaxed text-text">
-          <b>Hook conflict.</b> {plugin.name} and {other.n} both provide{' '}
+          <b>Hook conflict.</b> {plugin.name} and {other.name} both provide{' '}
           <code className="font-mono text-[11.5px]">{plugin.hooks?.[0]}</code>.
           Only one can be active at a time.
         </div>
@@ -43,7 +43,7 @@ export function ConflictPanel({
           }}
         />
         <ConflictOption
-          name={other.n}
+          name={other.name}
           active={otherIsWinner}
           onActivate={() => {
             onResolve(other.id, plugin.id);

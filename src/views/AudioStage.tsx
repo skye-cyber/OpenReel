@@ -3,7 +3,6 @@ import type { AudioMedia } from '../types';
 import { usePlayer } from '../hooks/player';
 import { WAVE, fmt } from '../lib/format';
 import { Chip } from '../components/Chip';
-import { CloseMediaButton } from '../components/mediaButton';
 
 export function AudioStage({ media }: { media: AudioMedia }) {
     const p = usePlayer();
@@ -132,8 +131,10 @@ export function AudioStage({ media }: { media: AudioMedia }) {
             />
 
             <div className="w-full max-w-[480px] flex flex-col items-center relative">
-                <div className="w-[210px] h-[210px] rounded-lg overflow-hidden relative shadow-[0_24px_56px_rgba(0,0,0,.55)] border border-border-2 mb-6.5 shrink-0">
-                    <svg viewBox="0 0 200 200" aria-hidden="true" className="absolute inset-0 w-full h-full">
+                <div className="w-[210px] h-[210px] overflow-hidden relative shadow-[0_24px_56px_rgba(0,0,0,.55)] border border-border-2 mb-6.5 shrink-0 rounded-full">
+                    <svg viewBox="0 0 200 200" aria-hidden="true"
+                    className={`absolute inset-0 w-full h-full
+                    ${p.playing ? 'animate-spin-slow' : ''}`}>
                         <defs>
                             <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stopColor="#22262d" />

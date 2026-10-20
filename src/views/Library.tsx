@@ -7,17 +7,15 @@ import type { ContextMenuEntry } from '../types/contextmenu';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { mediaFromPath, formatRelative } from '../helpers/herpers';
 import { LibraryGrid } from '../components/LibraryGrid';
-import { getLibraryPage } from '../lib/platform/library';
 import type { LibraryFile } from '../types/library';
 import type { Filter, Row as RowType } from '../types/library';
-import { isTauri } from '../lib/platform/system/shared';
 import { FILTERS, rowFromFile } from '../helpers/library';
 import { Row } from '../components/Library/Row';
+import { librarymanager } from '../lib/platform/library';
 
 
 export default function Library() {
     const p = usePlayer();
-    console.log("P", p.prefs)
     const [filter, setFilter] = useState<Filter>('all');
     const [q, setQ] = useState('');
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -31,11 +29,9 @@ export default function Library() {
 
     //Load page
     const loadPage = useCallback(async (offset: number) => {
-        if (!p.lastScanId) return;
         setLoadingFiles(true);
         try {
-            const page = await getLibraryPage(p.lastScanId, offset, 200);
-            console.log(page)
+            const page = await librarymanager.getLibraryPage(offset, 200);
             if (offset === 0) setFiles(page);
             else setFiles(prev => [...prev, ...page]);
             setHasMore(page.length === 200);
@@ -45,23 +41,19 @@ export default function Library() {
         } finally {
             setLoadingFiles(false);
         }
-    }, [p.lastScanId, p.toast]);
+    }, [p.toast]);
 
     useEffect(() => {
-        if (!p.lastScanId) {
-            setFiles([]);
-            setHasMore(false);
-            return;
-        }
         void loadPage(0);
-    }, [p.lastScanId, loadPage]);
+    }, [loadPage, p.libraryIndexReady]);
+
+    useEffect(() => {
+        void loadPage(0);
+    }, [loadPage, p.libraryIndexReady]);
 
     // Unified rows
     const allRows: RowType[] = useMemo(() => {
-        if (isTauri && p.lastScanId) {
-            return files.map(rowFromFile);
-        }
-        return []
+        return files.map(rowFromFile);
     }, [files, p.lastScanId]);
 
     const rows = useMemo(() => {
@@ -116,7 +108,6 @@ export default function Library() {
         : p.libraryMeta.lastScanAt === null
             ? `${p.libraryMeta.folders} folder${p.libraryMeta.folders === 1 ? '' : 's'} · not yet scanned`
             : `${p.libraryMeta.folders} folder${p.libraryMeta.folders === 1 ? '' : 's'} · ${p.libraryMeta.itemCount.toLocaleString()} items · last scan ${formatRelative(p.libraryMeta.lastScanAt)}`;
-    console.log("Rows:", rows)
 
     return (
         <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
@@ -198,14 +189,16 @@ export default function Library() {
             </div>
 
             {/* Empty state */}
-            {rows.length === 0 ? (
+            {!files || files.length === 0 ? (
                 <div className="py-16 text-center">
                     <div className="text-[12.5px] text-text-2 mb-3">
-                        {p.libraryMeta.folders === 0
-                            ? 'Library is empty. Add a folder to index your media.'
-                            : anyFilter
-                                ? 'No items match your filters.'
-                                : 'No files found yet. Try rep.scanning.'}
+                        {!p.libraryIndexReady && p.libraryMeta.folders > 0
+                            ? 'Scanning library…'
+                            : p.libraryMeta.folders === 0
+                                ? 'Library is empty. Add a folder to index your media.'
+                                : anyFilter
+                                    ? 'No items match your filters.'
+                                    : 'No files found in the indexed folders.'}
                     </div>
                     {p.libraryMeta.folders === 0 ? (
                         <Button

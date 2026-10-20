@@ -55,7 +55,7 @@ pub fn reset_settings(app: AppHandle) -> Result<(), String> {
     .unwrap_or_else(|_| "[]".to_string());
 
     let content = format!(
-        "{{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {{}},\n  \"settings\": {{}},\n  \"libraryMeta\": {{ \"folders\": {}, \"itemCount\": 0, \"lastScanAt\": null }},\n  \"libraryFolders\": {},\n  \"repositories\": [],\n  \"subTrack\": -1\n}}\n",
+        "{{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {{}},\n  \"settings\": {{}},\n  \"libraryMeta\": {{ \"folders\": {}, \"itemCount\": 0, \"lastScanAt\": null }},\n  \"libraryFolders\": {},\n  \"repositories\": [],\n  \"subTrack\": 0\n,\n  \"subTrack\": []\n}}\n",
         folders.len(),
                           folders_json,
     );

@@ -24,20 +24,20 @@ import {
 import { Session } from '../lib/platform/session';
 import type { PlayerState } from '../types/player';
 import { mediaFromQueueItem } from '../helpers/herpers';
-import { getMediaInfo } from '../helpers/media';
 import {
     DEFAULT_FOLDERS,
-    isWatchAvailable,
-    scanFolder,
+    librarymanager,
 } from '../lib/platform/library';
 import { labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
 import type { AudioTrackInfo, SubtitleTrackInfo } from '../types/mkvSource';
 import { CrashHandler } from '../lib/platform/system/Crash';
-import type { SafeModeReason } from '../lib/platform/system/shared';
+import { isTauri, type SafeModeReason } from '../lib/platform/system/shared';
 import { PlatformTools } from '../lib/platform/system/tools';
 import type { PersistedPrefs } from '../types/persists';
 import { savePrefs } from './persistSettings';
 import type { Folder } from '../types';
+import { listen } from '@tauri-apps/api/event';
+import type { MediaProbe } from '../types/library';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
 
@@ -62,7 +62,7 @@ export function PlayerProvider({
 }: PlayerProviderProps) {
     {
         const [settingCat, setSettingCat] = useState<Cat>('video');
-        const [view, setView] = useState<ViewId>('now');
+        const [view, _setView] = useState<ViewId>('now');
         const [media, _setMedia] = useState<Media | null>(null);
         const [playing, _setPlaying] = useState(false);
         const [pos, setPos] = useState(0);
@@ -100,11 +100,15 @@ export function PlayerProvider({
         const [repositoriesLoading, setRepositoriesLoading] = useState(false);
         const [repositoryError, setRepositoryError] = useState<string | null>(null);
         const [lastScanId, setLastScanId] = useState<string | null>(null)
+        const [recentIds, setRecentIds] = useState<string[]>(prefs.recentIds ?? []);
         // State
         const [safeMode, setSafeMode] = useState<boolean>(initialSafeMode);
         const [safeModeReason, setSafeModeReason] = useState<SafeModeReason | null>(
             initialSafeModeReason
         );
+        const _mediaInfoCache = useRef<Map<string, MediaProbe>>(new Map());
+
+        const [libraryIndexReady, setLibraryIndexReady] = useState<boolean>(false)
         const pendingSeekRef = useRef<number | null>(null);
         const pendingPlayRef = useRef<boolean>(false);
         // Scanning
@@ -135,7 +139,7 @@ export function PlayerProvider({
         const [plugins, setPlugins] = useState<Plugin[]>(() => {
             const persisted = prefs.plugins ?? {};
             return PLUGINS.map(p =>
-            p.id in persisted ? { ...p, on: persisted[p.id]! } : p
+                p.id in persisted ? { ...p, on: persisted[p.id]! } : p
             );
         });
 
@@ -167,6 +171,21 @@ export function PlayerProvider({
             settings.reducedMotion === 'system'
                 ? systemReducedMotion
                 : settings.reducedMotion === 'on';
+
+        const getMediaInfo = useCallback(async (m: Media): Promise<MediaProbe | null> => {
+            if (m.kind === 'error') return null;
+
+            const cached = _mediaInfoCache.current.get(m.id);
+            if (cached) return cached;
+
+            try {
+                const probe = await librarymanager.probeMediaFile(m.id);
+                _mediaInfoCache.current.set(m.id, probe);
+                return probe;
+            } catch {
+                return null;
+            }
+        }, []);
 
         const setSetting = useCallback(<K extends SettingKey>(key: K, value: Settings[K]) => {
             setSettings(prev => ({ ...prev, [key]: value }));
@@ -242,14 +261,53 @@ export function PlayerProvider({
                     })),
                     repositories,
                     subTrack,
+                    recentIds,
                 });
             }, 300);
             return () => clearTimeout(t);
         }, [
             themePref, vol, muted, speed,
-            plugins, settings,
+            plugins, settings, recentIds,
             libraryMeta, folders, repositories,
         ]);
+
+        const loadMeta = async () => {
+            try {
+                const meta = await librarymanager.getLibraryMeta();
+                setLibraryIndexReady(meta.hasIndex);
+                if (meta.hasIndex) {
+                    // Update folders with their real counts.
+                    setFolders(prev => prev.map(f => ({
+                        ...f,
+                        itemCount: meta.folderCounts[f.id] ?? f.itemCount,
+                    })));
+                    // Update libraryMeta with the aggregate.
+                    setLibraryMeta({
+                        folders: folders.length,
+                        itemCount: meta.totalCount,
+                        lastScanAt: meta.scannedAt,
+                    });
+                }
+            } catch (err) {
+                console.error('[library] load meta failed', err);
+            }
+        };
+        const refreshLibrary = loadMeta
+
+        // On mount, query the current index state:
+        useEffect(() => {
+            if (!isTauri) return;
+
+            void loadMeta();
+
+            const unlisten = listen('library-index-ready', () => {
+                setLibraryIndexReady(true);
+                void loadMeta();
+            });
+
+            return () => { void unlisten.then(f => f()); };
+        }, []);
+
         const announce = useCallback((msg: string) => {
             setLiveMessage(msg);
             // Clear after a moment so the same message can fire again.
@@ -298,7 +356,7 @@ export function PlayerProvider({
             if (!settings.pluginsEnabled) return;
             setPlugins(prev => prev.map(p => {
                 if (p.id !== id) return p;
-                if (p.st === 'incompat') return p;
+                if (p.status === 'incompat') return p;
                 return { ...p, on };
             }));
         }, [settings.pluginsEnabled, safeMode]);
@@ -382,6 +440,31 @@ export function PlayerProvider({
 
         const LOOKAHEAD = 0.15;
 
+        const setView = useCallback((v: ViewId) => {
+            setScene('empty');
+
+            // Navigating away from Now Playing closes the current media.
+            // Without this, the <video> element unmounts (VideoStage disappears)
+            // but the context still shows playing:true, media:<file>, pos:<n>.
+            // On return, the element remounts paused at 0 while the UI says
+            // "playing" — a stuck state.
+            if (view === 'now' && v !== 'now' && media !== null) {
+                // Save position before clearing, if resume is enabled.
+                if (settings.resumeEnabled && media.kind !== 'error' && dur > 0 && pos * dur >= settings.resumeThreshold) {
+                    Session.set(media.id, pos * dur);
+                }
+                _setPlaying(false);
+                _setMedia(null);
+                setPos(0);
+                setBuffered(0);
+                setSubTrack(-1);
+                setAudioTrack(0);
+                setBuffering(false)
+            }
+
+            _setView(v);
+        }, [view, media, dur, pos, settings.resumeEnabled, settings.resumeThreshold]);
+
         // Keep buffered at least pos + LOOKAHEAD, capped at 1.
         // Runs on every pos change, which is fine — it's a cheap Math.max.
         useEffect(() => {
@@ -455,6 +538,10 @@ export function PlayerProvider({
             });
         }, [hasMedia, dur]);
 
+        const clearRecents = useCallback(() => {
+            setRecentIds([]);
+        }, []);
+
         /* --------------------------------------------------------
          *    Media loading
          *    -------------------------------------------------------- */
@@ -471,6 +558,13 @@ export function PlayerProvider({
             const oldPos = posRef.current;
             const oldDur = durRef.current;
 
+            // Track as recent.
+            if (m.kind !== 'error') {
+                setRecentIds(prev => {
+                    const next = [m.id, ...prev.filter(id => id !== m.id)];
+                    return next.slice(0, 10);
+                });
+            }
             if (oldMedia && settings.resumeEnabled && oldDur > 0) {
                 const seconds = oldPos * oldDur;
                 if (seconds >= settings.resumeThreshold) {
@@ -524,6 +618,15 @@ export function PlayerProvider({
             toast(`Snapshot saved at ${t} — JPEG 1920×1080`);
         }, [hasMedia, pos, dur, toast]);
 
+
+        // Handle library scanning when indexes get updated
+        useEffect(() => {
+            if (!isTauri) return;
+            const unlisten = listen('library-index-ready', () => {
+                void refreshLibrary();
+            });
+            return () => { void unlisten.then(f => f()); };
+        }, []);
 
         // Save loop — a useEffect keyed on playing, media, and the setting
         useEffect(() => {
@@ -618,14 +721,11 @@ export function PlayerProvider({
 
             try {
                 let totalFound = 0;
-                let lastScanId = '';
-
-                // Track per-folder counts so we can write them back to `folders`.
                 const folderCounts: Record<string, number> = {};
 
                 for (const folder of targets) {
                     if (cancelled) break;
-                    const { itemsFound, scanId } = await scanFolder(folder, (p) => {
+                    const { itemsFound } = await librarymanager.scanFolder(folder, (p) => {
                         setScan(prev => prev ? {
                             ...prev,
                             itemsFound: p.itemsFound,
@@ -634,46 +734,34 @@ export function PlayerProvider({
                         } : prev);
                     });
                     totalFound += itemsFound;
-                    lastScanId = scanId;
                     folderCounts[folder.id] = itemsFound;
                 }
 
                 setScan(null);
 
-                // 1. Update folders with their per-folder counts.
-                //    This is what the persist effect reads when saving `libraryFolders`.
                 if (Object.keys(folderCounts).length > 0) {
                     setFolders(prev => prev.map(f => {
-                        const count = folderCounts[f.id];
-                        return count !== undefined ? { ...f, itemCount: count } : f;
+                        const c = folderCounts[f.id];
+                        return c !== undefined ? { ...f, itemCount: c } : f;
                     }));
                 }
 
-                // 2. Update libraryMeta with the aggregate.
-                //    `folders.length` matches what the folders state will be after
-                //    the setFolders above commits, and `totalFound` is the sum across
-                //    folders — the same value the persisted `itemCount` should reflect.
-                setLibraryMeta(prev => ({
+                setLibraryMeta({
                     folders: targets.length,
-                    itemCount: cancelled
-                        // Cancelled: keep whatever we found before the stop.
-                        ? totalFound
-                        : totalFound,
-                    lastScanAt: cancelled ? prev.lastScanAt : Date.now(),
-                }));
+                    itemCount: totalFound,
+                    lastScanAt: cancelled ? (libraryMeta.lastScanAt ?? Date.now()) : Date.now(),
+                });
 
-                setLastScanId(lastScanId);
-
-                if (cancelled) {
-                    toast('Scan cancelled — partial results kept');
-                } else {
+                if (!cancelled) {
                     toast(`Scanned ${targets.length} folder${targets.length === 1 ? '' : 's'} · ${totalFound.toLocaleString()} items`);
+                } else {
+                    toast('Scan cancelled — partial results kept');
                 }
             } catch (err) {
                 setScan(null);
                 toast(`Scan failed: ${err instanceof Error ? err.message : String(err)}`, 'err');
             }
-        }, [toast]);
+        }, [toast, libraryMeta.lastScanAt]);
 
         useEffect(() => {
             setLibraryMeta(prev => ({
@@ -713,7 +801,6 @@ export function PlayerProvider({
             }
 
             const label = labelForFolderPath(path);
-            // const itemCount = PlatformTools.scanFolder(path, onProgress)
             const folder: Folder = {
                 id,
                 label,
@@ -804,14 +891,14 @@ export function PlayerProvider({
             for (const catalog of catalogs) {
                 for (const rp of catalog.plugins) {
                     const installed = plugins.find(p =>
-                        p.id === rp.id || p.n === rp.name
+                        p.id === rp.id || p.name === rp.name
                     );
                     out.push({
                         ...rp,
                         repositoryId: catalog.repository.id,
                         repositoryLabel: catalog.repository.label,
                         installed: !!installed,
-                        installedVersion: installed?.v,
+                        installedVersion: installed?.version,
                     });
                 }
             }
@@ -841,15 +928,15 @@ export function PlayerProvider({
 
             const newPlugin: Plugin = {
                 id: entry.id,
-                n: entry.name,
-                p: entry.provider,
-                v: entry.version,
-                c: entry.category,
-                d: entry.description,
+                name: entry.name,
+                provider: entry.provider,
+                version: entry.version,
+                category: entry.category,
+                description: entry.description,
                 long: entry.longDescription,
                 homepage: entry.homepage,
                 on: false,   // newly-installed plugins start disabled — user enables
-                st: 'ok',
+                status: 'ok',
                 signed: entry.signed,
                 apiVersion: entry.apiVersion,
                 size: entry.size,
@@ -951,7 +1038,8 @@ export function PlayerProvider({
         }, [hasMedia, toast]);
 
         const syncPlayingFromElement = _setPlaying;
-        const watchAvailable = useMemo(() => isWatchAvailable(), []);
+        const watchAvailable = useMemo(() => librarymanager.isWatchAvailable(), []);
+        const mediaInfoCache = _mediaInfoCache.current
         /* --------------------------------------------------------
          *    Memoized context value
          *    -------------------------------------------------------- */
@@ -1003,7 +1091,7 @@ export function PlayerProvider({
             // Url dialog
             urlDialogOpen, setUrlDialogOpen,
             // Media info
-            mediaInfoOpen, setMediaInfoOpen, getMediaInfo,
+            mediaInfoOpen, setMediaInfoOpen, getMediaInfo, mediaInfoCache,
             // Scanning
             libraryMeta, scan, startScan, cancelScan, lastScanId, setLastScanId,
             // Pref
@@ -1017,7 +1105,11 @@ export function PlayerProvider({
             audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks,
             // Crash
             exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason,
-            consumePendingPlayback
+            consumePendingPlayback,
+            //Lib
+            libraryIndexReady, setLibraryIndexReady,
+            // Recent
+            recentIds, clearRecents,
         }), [
             // ---- Must mirror the value object field-for-field ----
             theme, themePref, systemDark,
@@ -1064,6 +1156,11 @@ export function PlayerProvider({
             consumePendingPlayback,
             //prefs
             prefs,
+            //Lib
+            libraryIndexReady, setLibraryIndexReady,
+            mediaInfoCache,
+            // Recent
+            recentIds, clearRecents,
         ]);
 
         return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

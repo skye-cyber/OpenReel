@@ -22,6 +22,14 @@ export interface LibraryFile {
     extension: string
 };
 
+export interface LibraryMeta {
+    hasIndex: boolean;
+    totalCount: number;
+    folderCounts: Record<string, number>;
+    scannedAt: number;
+    scanId: string | null;
+}
+
 export interface MediaProbe {
     duration: number,
     hasVideo: boolean,
@@ -38,6 +46,6 @@ export interface ScanResultSingle {
 }
 
 export interface ScanResult {
-    items_found: number,
+    itemsFound: number,
     cancelled: boolean,
 }

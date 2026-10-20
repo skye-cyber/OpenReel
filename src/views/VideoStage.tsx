@@ -26,6 +26,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
     useEffect(() => {
         const v = localRef.current;
         if (!v) return;
+        p.setBuffering(true)
 
         const onTimeUpdate = () => {
             if (Number.isFinite(v.duration) && v.duration > 0) {
@@ -46,6 +47,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             p.setBuffering(false);
         }
         const onLoadedMetadata = () => {
+            p.setBuffering(false)
             const { seek, play } = p.consumePendingPlayback();
             if (seek !== null && Number.isFinite(v.duration) && v.duration > 0) {
                 try {
@@ -118,8 +120,8 @@ export function VideoStage({ media }: { media: VideoMedia }) {
 
     /* Clear any stale track metadata left over from a previous MKV session. */
     useEffect(() => {
-        p.setAudioTracks(null);
-        p.setSubtitleTracks(null);
+        p.setAudioTracks([]);
+        p.setSubtitleTracks([]);
     }, [media.id, p.setAudioTracks, p.setSubtitleTracks]);
 
     /* Fallback context menus for non-MKV media — the mock track names. */
@@ -244,7 +246,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
 
                     {/* Buffering */}
                     {p.buffering && (
-                        <div className="absolute left-1/2 bottom-5.5 -translate-x-1/2 z-4 flex items-center gap-2.5 px-4 py-2 rounded-[20px] bg-[rgba(12,14,17,.82)] border border-white/10 text-[#e9ebee] text-[12px] shadow-md whitespace-nowrap pointer-events-none">
+                        <div className="hidden absolute left-1/2 bottom-5.5 -translate-x-1/2 z-4 flex items-center gap-2.5 px-4 py-2 rounded-[20px] bg-[rgba(12,14,17,.82)] border border-white/10 text-[#e9ebee] text-[12px] shadow-md whitespace-nowrap pointer-events-none">
                             <span className="w-3 h-3 rounded-full border-2 border-border-2 border-t-accent animate-spin-slow" />
                             <span>Buffering…</span>
                         </div>

@@ -3,14 +3,15 @@ import type {
     ViewId, ModalId, Toast,
     ToastKind, Plugin, QueueItem,
     ScanState,
-    LibraryMeta
+    LibraryMeta,
+    Folder
 } from "../types";
 import type { Settings, SettingKey, Cat } from "./settings";
 import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
-import type { Folder } from "../lib/platform/library";
 import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
 import type { SafeModeReason } from "../lib/platform/system/shared";
 import type { PersistedPrefs } from "./persists";
+import type { MediaProbe } from "./library";
 
 
 export interface MediaInfoStream {
@@ -156,7 +157,9 @@ export interface PlayerState {
 
     mediaInfoOpen: boolean;
     setMediaInfoOpen: (v: boolean) => void;
-    getMediaInfo: (media: Media) => MediaInfo;
+    getMediaInfo: (media: Media) => Promise<MediaProbe | null>;
+    mediaInfoCache: Map<string, MediaProbe>;  // optional, if you want to share
+
 
     scan: ScanState | null;
     startScan: () => void;
@@ -201,4 +204,10 @@ export interface PlayerState {
     setLastScanId: (id: string | null) => void;
     //Pref
     prefs: PersistedPrefs;
+    //Lib
+    libraryIndexReady: boolean;
+    setLibraryIndexReady: (s: boolean) => void;
+
+    recentIds: string[];
+    clearRecents: () => void;
 }

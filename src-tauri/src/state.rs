@@ -1,11 +1,12 @@
-use crate::commands::library::ScanCache;
+// CACHE is now tauri owned so this file is no longer neccessary
+use crate::commands::library::LibraryCache;
 use std::sync::{Mutex, OnceLock};
-use std::collections::HashMap;
 
-static SCAN_CACHE: OnceLock<ScanCache> = OnceLock::new();
+static LIBRARY_CACHE: OnceLock<LibraryCache> = OnceLock::new();
 
-pub fn get_scan_cache() -> &'static ScanCache {
-    SCAN_CACHE.get_or_init(|| ScanCache {
-        files: Mutex::new(HashMap::new()),
+pub fn get_library_cache() -> &'static LibraryCache {
+    LIBRARY_CACHE.get_or_init(|| LibraryCache {
+        index: Mutex::new(None),
+        scan_id: Mutex::new(None),
     })
 }

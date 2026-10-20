@@ -13,11 +13,16 @@ export function Dl({ children }: { children: React.ReactNode }) {
     return <div className="grid grid-cols-[110px_1fr] gap-x-3">{children}</div>;
 }
 
-export function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+export function Row({ label, value, mono, small }: { label: string; value: string; mono?: boolean; small?: boolean }) {
     return (
         <>
             <div className="text-[11.5px] text-text-3 py-1 truncate">{label}</div>
-            <div className={`text-[11.5px] py-1 truncate ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</div>
+            <div
+                className={`py-1 truncate ${mono ? 'font-mono tabular-nums' : ''} ${small ? 'text-[10.5px]' : 'text-[11.5px]'}`}
+                title={value}
+            >
+                {value}
+            </div>
         </>
     );
 }

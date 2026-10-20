@@ -1,4 +1,3 @@
-import type { LIBRARY } from "../data/mock";
 import type { Filter, LibraryFile, Row } from "../types/library";
 
 export const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
@@ -8,19 +7,6 @@ export const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
     { id: 'unwatched', l: 'Unwatched' },
     { id: 'missing', l: 'Missing' },
 ];
-
-export function rowFromMock(r: (typeof LIBRARY)[number]): Row {
-    return {
-        id: r.p,
-        title: r.t,
-        path: r.p,
-        duration: r.d,
-        format: r.f,
-            size: '—',
-            plays: r.pl,
-            missing: !!r.missing,
-    };
-}
 
 export function formatSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;

@@ -1,9 +1,9 @@
 import Icon from "../../lib/Icons";
 import { formatDuration } from "../../helpers/media";
 import { useEffect, useState } from "react";
-import { probeMediaFile } from "../../lib/platform/library";
 import { isTauri } from "../../lib/platform/system/shared";
 import type { MediaProbe, Row } from "../../types/library";
+import { librarymanager } from "../../lib/platform/library";
 
 export function Row({
     row, index, isSelected, onSelect, onPlay, onContextMenu, onNavigate,
@@ -21,7 +21,7 @@ export function Row({
     useEffect(() => {
         if (!isTauri) return;
         let cancelled = false;
-        void probeMediaFile(row.path).then(p => {
+        void librarymanager.probeMediaFile(row.path).then(p => {
             if (!cancelled) setProbe(p);
         }).catch(() => { });
         return () => { cancelled = true; };

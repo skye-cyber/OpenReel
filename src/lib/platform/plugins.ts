@@ -159,9 +159,9 @@ export async function getKnownRepositories(): Promise<Repository[]> {
     if (isTauri) {
         // Could be a command. For now, static list is fine since
         // repositories are added explicitly by the user via settings.
-        return KNOWN_REPOSITORY_CHOICES;
+        return [];
     }
-    return KNOWN_REPOSITORY_CHOICES;
+    return [];
 }
 
 /* ============================================================

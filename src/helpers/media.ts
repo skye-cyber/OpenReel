@@ -120,3 +120,33 @@ export function displayLanguage(code: string | null): string | null {
     if (!code) return null;
     return LANG_NAMES[code.toLowerCase()] ?? code.toUpperCase();
 }
+
+export function inferContainer(media: Media): string {
+    const ext = media.id.split('.').pop()?.toLowerCase() ?? '';
+    const map: Record<string, string> = {
+        mkv: 'Matroska',
+        mp4: 'MPEG-4',
+        m4v: 'MPEG-4',
+        webm: 'WebM',
+        mov: 'QuickTime',
+        avi: 'AVI',
+        flv: 'Flash Video',
+        wmv: 'Windows Media',
+        ogv: 'Ogg',
+        mp3: 'MPEG Audio',
+        flac: 'FLAC',
+        wav: 'WAVE',
+        m4a: 'MPEG-4 Audio',
+        aac: 'AAC',
+        ogg: 'Ogg',
+        opus: 'Opus',
+        wma: 'Windows Media Audio',
+    };
+    return map[ext] ? ext.toUpperCase() : '—';
+}
+
+export function guessFrameRate(_media: Media): string {
+    // Can't read frame rate from the element without requestVideoFrameCallback.
+    // Return a placeholder.
+    return '—';
+}

@@ -3,7 +3,6 @@ import type { ThemePref } from '../../types';
 import type { LibraryMeta } from '../../types';
 import { DEFAULT_PREFS } from './shared';
 import type { Repository } from '../../types/plugins';
-import type { Folder } from '../../lib/platform/library';
 
 export function isThemePref(x: unknown): x is ThemePref {
     return x === 'system' || x === 'light' || x === 'dark';
@@ -105,4 +104,9 @@ export function validateRepositories(raw: unknown): Repository[] {
         });
     }
     return out;
+}
+
+export function validateRecentIds(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((x): x is string => typeof x === 'string').slice(0, 20);
 }
