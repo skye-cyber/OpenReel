@@ -6,6 +6,8 @@
  * list. The simulation exists so the UI has something to react to.
  */
 
+import { isTauri } from './system/shared';
+
 export interface Folder {
     id: string;
     path: string;
@@ -16,9 +18,9 @@ export interface Folder {
 
 export interface ScanProgress {
     /** Zero-based index of the folder being scanned. */
-    folderIndex: number;
+    folderIndex?: number;
     /** Total folders being scanned. */
-    folderCount: number;
+    folderCount?: number;
     /** Items discovered so far across all folders. */
     itemsFound: number;
     /** Total items expected across all folders. */
@@ -34,9 +36,8 @@ export interface ScanResult {
 }
 
 export const DEFAULT_FOLDERS: Folder[] = [
-    { id: 'f-videos', label: 'Videos', path: '~/Videos', itemCount: 3240 },
-    { id: 'f-course', label: 'Course', path: '~/Videos/Course', itemCount: 4182 },
-    { id: 'f-music', label: 'Music', path: '~/Music', itemCount: 990 },
+    { id: 'videos', label: 'Videos', path: '~/Videos', itemCount: 3240 },
+    { id: 'music', label: 'Music', path: '~/Music', itemCount: 990 },
 ];
 
 /**
@@ -100,23 +101,43 @@ export async function scanOne(
     folder: Folder,
     onProgress: (p: ScanProgress) => void,
     isCancelled: () => boolean = () => false,
-): Promise<ScanResult> {
+): Promise<ScanResult | { items: number; cancelled: boolean }> {
+    if (isTauri) {
+        const { invoke, Channel } = await import('@tauri-apps/api/core');
+        const channel = new Channel<{ items_found: number; items_expected: number }>();
+        channel.onmessage = (msg) => {
+            onProgress({
+                folderIndex: 0,
+                folderCount: 1,
+                itemsFound: msg.items_found,
+                itemsExpected: msg.items_expected,
+                currentFolder: folder.label,
+            });
+        };
+        const result = await invoke<{ items_found: number; cancelled: boolean }>('scan_folder', {
+            path: folder.path,
+            onProgress: channel,
+        });
+        return { items: result.items_found, cancelled: result.cancelled };
+    }
     return simulateFolder(folder, 0, 0, 1, folder.itemCount, onProgress, isCancelled);
 }
 
-/**
- * Watch a folder for changes. Returns an unsubscribe function.
- *
- * TODO(tauri): replace with a real filesystem watcher (tauri-plugin-fs-watch
- * or inotify via a Rust command). The callback fires when files are added,
- * moved, removed, or renamed within the folder. Currently a no-op that
- * never fires; the app treats this as "watching unavailable on this build."
- */
-export async function watchFolder(_folder: Folder, _onChange: () => void): Promise<() => void> {
-    // TODO(tauri): invoke('watch_folder', { path }) returns a subscription
-    // id; register an event listener for 'folder-changed' events matching
-    // that id; the returned function invokes('unwatch_folder', { id }).
-    return () => {};
+export async function watchFolder(
+    folder: Folder,
+    onChange: () => void,
+): Promise<() => void> {
+    if (isTauri) {
+        const { listen } = await import('@tauri-apps/api/event')
+        const { invoke } = await import('@tauri-apps/api/core');
+        const id = await invoke<string>('watch_folder', { path: folder.path });
+        const unlisten = await listen(`folder-changed:${id}`, onChange);
+        return () => {
+            void unlisten();
+            void invoke('unwatch_folder', { id });
+        };
+    }
+    return () => { };
 }
 
 /**
@@ -124,5 +145,5 @@ export async function watchFolder(_folder: Folder, _onChange: () => void): Promi
  * False until the backend is connected.
  */
 export function isWatchAvailable(): boolean {
-    return false;
+    return isTauri;
 }

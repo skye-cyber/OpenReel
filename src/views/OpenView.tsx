@@ -65,11 +65,9 @@ export default function OpenView() {
                             <thead>
                                 <tr>
                                     {['Name', 'Type', 'Size', 'Modified'].map(h => (
-                                        <th key={h} className="text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3
-                px-3 pb-2.5 border-b border-border whitespace-nowrap">{h}</th>
+                                        <th key={h} className="text-left text-[10px] font-bold tracking-[.08em] uppercase text-text-3 px-3 pb-2.5 border-b border-border whitespace-nowrap">{h}</th>
                                     ))}
-                                    <th className="text-right text-[10px] font-bold tracking-[.08em] uppercase text-text-3
-            px-3 pb-2.5 border-b border-border whitespace-nowrap">Duration</th>
+                                    <th className="text-right text-[10px] font-bold tracking-[.08em] uppercase text-text-3 px-3 pb-2.5 border-b border-border whitespace-nowrap">Duration</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -77,13 +75,12 @@ export default function OpenView() {
                                     <tr
                                         key={`${r.n}-${i}`}
                                         onClick={() => setSel(i)}
-                                        onDoubleClick={() => r.k !== 'file' && playMedia(mediaFromOpenFile(r))}
+                                        onDoubleClick={async() => r.k !== 'file' && playMedia(await mediaFromOpenFile(r))}
                                         className={`transition-colors ${r.k !== 'file' ? 'cursor-pointer' : 'cursor-default'} ${i === safeSel ? 'bg-accent-soft' : 'hover:bg-surface'}`}
                                     >
                                         <td className="px-3 py-2.5 border-b border-border">
                                             <div className="flex items-center gap-2.5 min-w-0">
-                                                <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border
-                flex items-center justify-center text-text-3 shrink-0">
+                                                <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border flex items-center justify-center text-text-3 shrink-0">
                                                     <Icon name={r.k === 'audio' ? 'music' : r.k === 'file' ? 'layers' : 'film'} size={15} />
                                                 </div>
                                                 <div className="min-w-0">
@@ -106,8 +103,7 @@ export default function OpenView() {
                 <div className="flex-1 w-[280px] h-[420px] shrink-0 border-l border-border p-5 overflow-y-auto bg-surface overflow-y-scroll">
                     {f ? (
                         <>
-                            <div className="w-11 h-11 rounded-sm bg-surface-2 border border-border flex items-center justify-center
-            text-text-3 mb-3.5">
+                            <div className="w-11 h-11 rounded-sm bg-surface-2 border border-border flex items-center justify-center text-text-3 mb-3.5">
                                 <Icon name={f.k === 'audio' ? 'music' : f.k === 'file' ? 'layers' : 'film'} size={20} />
                             </div>
                             <h4 className="text-[12.5px] font-[650] mb-1 break-all">{f.n}</h4>
@@ -129,7 +125,7 @@ export default function OpenView() {
                             />
 
                             {f.k !== 'file' ? (
-                                <Button variant="primary" icon="play" onClick={() => playMedia(mediaFromOpenFile(f))} className="w-full mt-5">
+                                <Button variant="primary" icon="play" onClick={async() => playMedia(await mediaFromOpenFile(f))} className="w-full mt-5">
                                     Open
                                 </Button>
                             ) : (

@@ -99,6 +99,9 @@ export default defineConfig({
             // Don't let Vite watch Rust/Tauri build artifacts.
             ignored: ['**/src-tauri/**'],
         },
+        cors: {
+            origin: 'http://localhost:4043',
+        },
     },
 
     // Expose VITE_* and TAURI_ENV_* to the client.

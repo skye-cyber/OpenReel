@@ -5,20 +5,15 @@ import { Seg } from '../components/Segment';
 import { usePlayer } from "../hooks/player";
 import type { ThemePref } from '../types';
 import type { HardwareProbe } from '../types/platform';
-import { platformtools } from '../lib/platform/system';
+import { PlatformTools as platformtools } from '../lib/platform/system/tools';
 
-type Probe = null | 'run' | 'ok' | 'no';
+export type Probe = null | 'run' | 'ok' | 'no';
 
 export default function Welcome() {
-    const { applyScene, setView, toast, themePref, setThemePref } = usePlayer();
+    const { applyScene, toast, themePref, setThemePref } = usePlayer();
     const [hw, setHw] = useState<'a' | 'b'>('a');
     const [probe, setProbe] = useState<Probe>(null);
     const [probeResult, setProbeResult] = useState<HardwareProbe | null>(null);
-
-    const probeText =
-        probe === null ? 'Uses the GPU where a decoder is available.'
-            : probe === 'run' ? 'Checking this device…'
-                : 'VA-API available on this device — Intel Iris Xe.';
 
     return (
         <div className="min-h-full flex items-center justify-center p-10 px-6 relative
@@ -51,12 +46,12 @@ export default function Welcome() {
                         <div className="flex-1 min-w-0">
                             <div className="text-[12.5px] font-semibold mb-0.5">Hardware video decoding</div>
                             <div className="text-[11.5px] text-text-3">
-                            {probe === null && 'Uses the GPU where a decoder is available.'}
-                            {probe === 'run' && 'Checking this device…'}
-                            {probe === 'ok' && probeResult && (
-                                `${probeResult.backend} available on this device — ${probeResult.device}.`
-                            )}
-                            {probe === 'no' && 'No hardware decoder detected — software decoding will be used.'}
+                                {probe === null && 'Uses the GPU where a decoder is available.'}
+                                {probe === 'run' && 'Checking this device…'}
+                                {probe === 'ok' && probeResult && (
+                                    `${probeResult.backend} available on this device — ${probeResult.device}.`
+                                )}
+                                {probe === 'no' && 'No hardware decoder detected — software decoding will be used.'}
                             </div>
                         </div>
                         {probe === 'ok' ? (
@@ -75,7 +70,7 @@ export default function Welcome() {
                                         setProbeResult(result);
                                         setProbe(result.available ? 'ok' : 'no' as Probe);
                                     } catch {
-                                        setProbe('no'  as Probe);
+                                        setProbe('no' as Probe);
                                     }
                                 }}
                             >
@@ -97,7 +92,7 @@ export default function Welcome() {
 
                 <div className="flex gap-2.5 items-center">
                     <Button variant="primary" onClick={() => applyScene('empty')}>Start using OpenReel</Button>
-                    <Button onClick={() => setView('open')}>Open a file…</Button>
+                    <Button onClick={() => platformtools.openPath('')}>Open a file…</Button>
                 </div>
 
                 <div className="mt-4.5 text-[11.5px] text-text-3 flex items-center gap-1.5">

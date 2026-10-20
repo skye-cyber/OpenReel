@@ -9,6 +9,7 @@ export interface HardwareProbe {
   codecs: string[];
   /** Codecs the backend supports but the build can't decode. */
   unavailableCodecs: string[];
+  error?: string
 }
 
 export interface PlatformInfo {
@@ -25,4 +26,23 @@ export interface PlatformInfo {
   audioBackend: string;
   /** OS display scaling, e.g. 1.25 for 125%. */
   displayScaling: number;
+}
+
+export interface UpdateCheckResult {
+  available: boolean;
+  version?: string;
+  url?: string;
+  error?: string;
+}
+
+export interface LogLine {
+  timestamp: string;
+  level: string;
+  message: string;
+}
+
+export interface LogTail {
+  lines: LogLine[];
+  path: string;
+  error: string | null;
 }

@@ -15,7 +15,7 @@ import type {
 } from '../types';
 import { AUDIO, ERROR_MEDIA, VIDEO, QUEUE as QUEUE_SEED, PLUGINS, ERROR_MISSING, ERROR_PERMISSION, ERROR_CORRUPT, ERROR_NO_AUDIO, ERROR_VIDEO_OUT, ERROR_PLUGIN } from '../data/mock';
 import { fmt } from '../lib/format';
-import { loadPrefs, savePrefs } from './persist';
+import { loadPrefs, savePrefs, type PersistedPrefs } from './persistSettings';
 import {
     DEFAULT_SETTINGS,
     type Cat,
@@ -37,7 +37,9 @@ import {
 } from '../lib/platform/library';
 import { pickFolder, labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
 import type { AudioTrackInfo, SubtitleTrackInfo } from '../types/mkvSource';
-import { SessionCrashManager, type SafeModeReason } from '../lib/platform/system';
+import { CrashHandler } from '../lib/platform/system/Crash';
+import type { SafeModeReason } from '../lib/platform/system/shared';
+import { PlatformTools } from '../lib/platform/system/tools';
 
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
@@ -50,11 +52,17 @@ function prependActivity(p: Plugin, level: PluginActivity['level'], msg: string)
 
 interface PlayerProviderProps {
     children: ReactNode;
+    initialPrefs: PersistedPrefs;
     initialSafeMode: boolean;
     initialSafeModeReason: SafeModeReason | null;
 }
 
-export function PlayerProvider({ children, initialSafeMode, initialSafeModeReason }: PlayerProviderProps) {
+export function PlayerProvider({
+    children,
+    initialPrefs: prefs,
+    initialSafeMode,
+    initialSafeModeReason
+}: PlayerProviderProps) {
     {
         const [settingCat, setSettingCat] = useState<Cat>('video');
         const [view, setView] = useState<ViewId>('now');
@@ -85,7 +93,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
         const [mediaInfoOpen, setMediaInfoOpen] = useState(false);
         const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
         const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(null);
-        const [prefs] = useState(loadPrefs);  // loads once, never updated
+        // const [prefs] = useState(initialPrefs || loadPrefs);  // loads once, never updated
         // A ref to track the current save-loop so we can clear it:
         const saveLoopRef = useRef<number | null>(null);
         const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -474,6 +482,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
             // committed the new src before we try to seek and play.
             requestAnimationFrame(() => {
                 const v = videoRef.current;
+
                 if (v) {
                     if (shouldResume && saved !== undefined) {
                         v.currentTime = saved;
@@ -481,12 +490,12 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
                     } else {
                         v.currentTime = 0;
                     }
-                    void v.play().catch(() => { /* autoplay blocked */ });
+                    void v.play().catch(() => {/**/});
                 } else {
                     // No element (audio stage, or video element not yet mounted).
                     // Fall back to state-only seek.
                     seekTo(shouldResume && saved !== undefined ? saved / m.dur : 0);
-                    _setPlaying(true);
+                    _setPlaying(false);
                 }
             });
         }, [setMedia, setView, seekTo, toast, settings.resumeEnabled, settings.resumeThreshold]);
@@ -545,7 +554,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
         /* --------------------------------------------------------
          *    Queue navigation
          *    -------------------------------------------------------- */
-        const playQueueItem = useCallback((i: number) => {
+        const playQueueItem = useCallback(async (i: number) => {
             const item = queue[i];
             if (!item || item.bad) {
                 if (item?.bad) toast(`Skipped “${item.n}” — unplayable`, 'err');
@@ -553,7 +562,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
             }
             setQueueIndex(i);
             // ses the helper instead of the inline heuristic
-            playMedia(mediaFromQueueItem(item));
+            playMedia(await mediaFromQueueItem(item));
         }, [queue, playMedia, toast]);
 
         const nextItem = useCallback(() => {
@@ -646,6 +655,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
             if (scan?.inProgress) return;
             void runScan(folders, (onProgress, isCancelled) => scanAll(folders, onProgress, isCancelled));
         }, [folders, scan, runScan]);
+
         // PS2
         const cancelScan = useCallback(() => {
             cancelRef.current();
@@ -657,7 +667,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
                 return;
             }
 
-            const path = await pickFolder();
+            const path = await PlatformTools.pickFolder();
             if (path === null) return;   // user cancelled
 
             const id = idForFolderPath(path);
@@ -669,11 +679,12 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
             }
 
             const label = labelForFolderPath(path);
+            // const itemCount = PlatformTools.scanFolder(path, onProgress)
             const folder: Folder = {
                 id,
                 label,
                 path,
-                itemCount: Math.floor(200 + Math.random() * 1500),
+                itemCount: 0,
             };
 
             setFolders(prev => [...prev, folder]);
@@ -681,6 +692,7 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
             await runScan([folder], (onProgress, isCancelled) =>
                 scanOne(folder, onProgress, isCancelled),
             );
+            console.log("SCAN:", folder, folders)
         }, [scan, folders, toast, runScan]);
 
         const removeFolder = useCallback((folderId: string) => {
@@ -840,13 +852,13 @@ export function PlayerProvider({ children, initialSafeMode, initialSafeModeReaso
 
         // Safemode/recovery actions:
         const enterSafeMode = useCallback((reason: SafeModeReason = 'user') => {
-            SessionCrashManager.enterSafeMode(reason);
+            CrashHandler.enterSafeMode(reason);
             setSafeMode(true);
             setSafeModeReason(reason);
         }, []);
 
         const exitSafeModeAndReload = useCallback(() => {
-            SessionCrashManager.exitSafeMode();
+            CrashHandler.exitSafeMode();
             setSafeMode(false);
             setSafeModeReason(null);
             window.location.reload();

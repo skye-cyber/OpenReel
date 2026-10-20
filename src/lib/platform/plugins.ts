@@ -11,6 +11,7 @@ import type {
     RepositoryCatalog,
     RepositoryPlugin,
 } from '../../types/plugins';
+import { isTauri } from './system/shared';
 
 /* ============================================================
  *  Simulated catalogs — one per known repository
@@ -155,6 +156,11 @@ export const KNOWN_REPOSITORY_CHOICES: Repository[] = [
  * list of the two demo repositories.
  */
 export async function getKnownRepositories(): Promise<Repository[]> {
+    if (isTauri) {
+        // Could be a command. For now, static list is fine since
+        // repositories are added explicitly by the user via settings.
+        return KNOWN_REPOSITORY_CHOICES;
+    }
     return KNOWN_REPOSITORY_CHOICES;
 }
 
@@ -164,8 +170,10 @@ export async function getKnownRepositories(): Promise<Repository[]> {
 export async function fetchRepository(
     repository: Repository,
 ): Promise<RepositoryCatalog> {
-    // Simulate network latency.
-    await new Promise(r => setTimeout(r, 800));
+    if (isTauri) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return invoke<RepositoryCatalog>('fetch_repository', { repository });
+    }
 
     const catalog = CATALOGS[repository.id];
     if (!catalog) {

@@ -33,7 +33,7 @@ export function Row({ title, desc, control, changed, onReset }: RowProps) {
                     {changed && <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />}
                     {title}
                 </div>
-                <div className="text-[11.5px] text-text-3 mt-0.5 leading-normal">{desc}</div>
+                <div className="text-[11.5px] text-text-3 mt-0.5 leading-normal">{desc as any}</div>
             </div>
             <div className="shrink-0 flex items-center gap-2">
                 {control}

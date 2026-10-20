@@ -1,21 +1,36 @@
 import Icon from "../lib/Icons";
 import { usePlayer } from "../hooks/player";
 import type { ViewId, IconName } from "../types";
+import { isTauri } from "../lib/platform/system/shared";
+import { mediaFromPath } from "../helpers/herpers";
+import { PlatformTools } from "../lib/platform/system/tools";
 
 interface NavItem { id: ViewId; l: string; ic: IconName }
 interface NavGroup { group: string; items: NavItem[] }
 
 const NAV: NavGroup[] = [
-    { group: 'Playback',    items: [{ id: 'now',      l: 'Now Playing', ic: 'disc' }] },
-{ group: 'Browse',      items: [
-    { id: 'library',  l: 'Library',  ic: 'grid' },
-    { id: 'plugins',  l: 'Plugins',  ic: 'plug' },
-]},
-{ group: 'Application', items: [{ id: 'settings', l: 'Settings',   ic: 'gear' }] },
+    { group: 'Playback', items: [{ id: 'now', l: 'Now Playing', ic: 'disc' }] },
+    {
+        group: 'Browse', items: [
+            { id: 'library', l: 'Library', ic: 'grid' },
+            { id: 'plugins', l: 'Plugins', ic: 'plug' },
+        ]
+    },
+    { group: 'Application', items: [{ id: 'settings', l: 'Settings', ic: 'gear' }] },
 ];
 
+
 export function Sidebar() {
-    const { view, setView } = usePlayer();
+    const { view, setView, playMedia } = usePlayer();
+    const handleOpenFile = async () => {
+        if (isTauri) {
+            const path = await PlatformTools.pickFile();
+            if (path) playMedia(await mediaFromPath(path));
+        } else {
+            setView('open');
+        }
+    };
+
     return (
         <aside className="w-54 shrink-0 flex flex-col bg-surface border-r border-border">
             <div className="flex-1 overflow-y-auto p-3 px-2.5">
@@ -36,6 +51,13 @@ export function Sidebar() {
                         ))}
                     </div>
                 ))}
+                <button
+                    onClick={() => void handleOpenFile()}
+                    className="nav-base nav-hover"
+                >
+                    <Icon name="plus" size={16} />
+                    Open
+                </button>
             </div>
 
             <div className="p-2.5 border-t border-border">

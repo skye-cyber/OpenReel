@@ -2,21 +2,41 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles/styles.css';
-import { SessionCrashManager } from './lib/platform/system';
+import { CrashHandler } from './lib/platform/system/Crash';
+import { loadPrefs } from './state/persistSettings';
+import { initStreamPort } from './lib/mediaPath';
 
-const previous = SessionCrashManager.markSessionStart();
-if (!SessionCrashManager.isSafeMode() && SessionCrashManager.detectCrashLoop(previous)) {
-    SessionCrashManager.enterSafeMode('crash');
+async function bootstrap() {
+    const previous = await CrashHandler.markSessionStart();
+
+    if (
+        !(await CrashHandler.isSafeMode()) &&
+        CrashHandler.detectCrashLoop(previous)
+    ) {
+        await CrashHandler.enterSafeMode('crash');
+    }
+
+    const [initialSafeMode, initialSafeModeReason, initialPrefs] = await Promise.all([
+        CrashHandler.isSafeMode(),
+        CrashHandler.getSafeModeReason(),
+        loadPrefs(),
+    ]);
+
+    await initStreamPort()
+
+    window.addEventListener('beforeunload', () => {
+        void CrashHandler.markCleanExit();
+    });
+
+    createRoot(document.getElementById('root')!).render(
+        <React.StrictMode>
+            <App
+                initialPrefs={initialPrefs}
+                initialSafeMode={initialSafeMode}
+                initialSafeModeReason={initialSafeModeReason}
+            />
+        </React.StrictMode>,
+    );
 }
-const initialSafeMode = SessionCrashManager.isSafeMode();
-const initialSafeModeReason = SessionCrashManager.getSafeModeReason();
-window.addEventListener('beforeunload', () => SessionCrashManager.markCleanExit());
 
-createRoot(document.getElementById('root') as HTMLElement).render(
-    <React.StrictMode>
-        <App
-            initialSafeMode={initialSafeMode}
-            initialSafeModeReason={initialSafeModeReason}
-        />
-    </React.StrictMode>
-);
+void bootstrap();

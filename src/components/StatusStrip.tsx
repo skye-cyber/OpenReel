@@ -2,7 +2,7 @@ import { usePlayer } from "../hooks/player";
 import Icon from "../lib/Icons";
 
 export function StatusStrip() {
-    const { buffering, offline, settings, scan, cancelScan } = usePlayer();
+    const { buffering, offline, settings, scan, cancelScan, media } = usePlayer();
 
     if (!settings.showStatusStrip) return null;
 
@@ -24,7 +24,7 @@ export function StatusStrip() {
             {buffering && (
                 <>
                     <span className="w-3 h-3 rounded-full border-2 border-border-2 border-t-accent animate-spin-slow" />
-                    <span>Buffering lecture-04.mkv · 42%</span>
+                    <span>Buffering {media?.title}</span>
                 </>
             )}
             {offline && (

@@ -2,9 +2,8 @@ import { DEFAULT_SETTINGS, type SettingKey, type Settings, type SubtitleStyle } 
 import type { ThemePref } from '../../types';
 import type { LibraryMeta } from '../../types';
 import { DEFAULT_PREFS } from './shared';
-import type { PersistedLibraryFolder } from '../../types/persists';
 import type { Repository } from '../../types/plugins';
-
+import type { Folder } from '../../lib/platform/library';
 
 export function isThemePref(x: unknown): x is ThemePref {
     return x === 'system' || x === 'light' || x === 'dark';
@@ -78,9 +77,9 @@ export function validateLibraryMeta(raw: unknown): LibraryMeta {
     };
 }
 
-export function validateLibraryFolders(raw: unknown): PersistedLibraryFolder[] {
+export function validateLibraryFolders(raw: unknown): Folder[] {
     if (!Array.isArray(raw)) return [];
-    const out: PersistedLibraryFolder[] = [];
+    const out: Folder[] = [];
     for (const entry of raw) {
         if (!entry || typeof entry !== 'object') continue;
         const e = entry as Record<string, unknown>;

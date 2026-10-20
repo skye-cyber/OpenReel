@@ -9,7 +9,7 @@ import type { Settings, SettingKey, Cat } from "./settings";
 import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
 import type { Folder } from "../lib/platform/library";
 import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
-import type { SafeModeReason } from "../lib/platform/system";
+import type { SafeModeReason } from "../lib/platform/system/shared";
 
 
 export interface MediaInfoStream {

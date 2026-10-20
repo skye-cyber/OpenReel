@@ -2,11 +2,12 @@ import { RECENTS } from '../data/mock';
 import { usePlayer } from "../hooks/player";
 import Icon from '../lib/Icons';
 import { Button } from '../components/Button';
-import {mediaFromRecentItem } from '../helpers/herpers';
+import { mediaFromPath, mediaFromRecentItem } from '../helpers/herpers';
 import type { RecentItem } from '../types';
+import { PlatformTools } from '../lib/platform/system/tools';
 
 export function EmptyState() {
-    const { setView, playMedia, setUrlDialogOpen } = usePlayer();
+    const p = usePlayer();
     return (
         <div className="min-h-full flex flex-col items-center justify-center p-12 px-6 relative before:content-[''] before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(520px_300px_at_50%_32%,var(--color-accent-soft),transparent_72%)]">
             <div className="relative flex flex-col items-center">
@@ -19,8 +20,14 @@ export function EmptyState() {
                 </p>
 
                 <div className="flex gap-2.5 mb-8">
-                    <Button variant="primary" icon="folder" onClick={() => setView('open')}>Open File…</Button>
-                    <Button icon="link" onClick={() => setUrlDialogOpen(true)}>Open URL…</Button>
+                    <Button variant="primary" icon="folder" onClick={async () => {
+                        const path = await PlatformTools.pickFile();
+                        if (path) {
+                            p.playMedia(await mediaFromPath(path));
+                        }
+                    }}
+                    >Open File…</Button>
+                    <Button icon="link" onClick={() => p.setUrlDialogOpen(true)}>Open URL…</Button>
                 </div>
 
                 <div className="w-full max-w-[480px]">
@@ -31,7 +38,7 @@ export function EmptyState() {
                     {RECENTS.map((r: RecentItem, i) => (
                         <div
                             key={i}
-                            onClick={() => playMedia(mediaFromRecentItem(r))}
+                            onClick={async() => p.playMedia(await mediaFromRecentItem(r))}
                             className="rec flex items-center gap-2.5 p-[8px_11px] rounded-md cursor-pointer transition-colors hover:bg-surface"
                         >
                             <div className="w-7.5 h-7.5 rounded-sm bg-surface-2 border border-border flex items-center justify-center text-text-3 shrink-0">

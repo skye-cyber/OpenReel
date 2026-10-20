@@ -8,6 +8,7 @@
    --font-sans      → font-sans
    ============================================================ */
 @theme {
+  --color-log:        #08090b;
   --color-app:        #0c0e11;
   --color-surface:    #13161a;
   --color-surface-2:  #181c21;
@@ -22,6 +23,7 @@
   --color-text:       #eceef1;
   --color-text-2:     #98a1ac;
   --color-text-3:     #69727d;
+  --color-text-log:   #282f38;
 
   --color-accent:     #e8875a;
   --color-accent-hi:  #f29c74;
@@ -53,6 +55,7 @@
 
 /* Light theme — same names, different values. */
 [data-theme="light"] {
+  --color-log: #f0f1f3;
   --color-app:        #f0f1f3;
   --color-surface:    #ffffff;
   --color-surface-2:  #f8f9fb;
@@ -65,6 +68,7 @@
   --color-border-3:   rgba(0,0,0,.22);
 
   --color-text:       #14171b;
+  --color-text-log:   #8f98a3;
   --color-text-2:     #5b6470;
   --color-text-3:     #8b939d;
 

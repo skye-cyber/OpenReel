@@ -6,7 +6,7 @@ import type {
 export const VIDEO: VideoMedia = {
     kind: 'video',
     id: 'The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
-    url: '/media/The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
+    url: '/home/skye/Videos/The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
     title: 'The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
     sub: 'The_Lincoln_Lawyer_S01E08',
     dur: 0,          // real duration comes from durationchange
@@ -92,7 +92,7 @@ export const ERROR_PLUGIN: ErrorMedia = {
 };
 
 export const RECENTS: RecentItem[] = [
-    { n: 'The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv', p: '~/Videos/The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv', d: '—', k: 'video' },
+    { n: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', p: '/home/skye/Videos/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—', k: 'video' },
     { n: 'lecture-04.mkv', p: '~/Videos/Course', d: '48:31', k: 'video' },
     { n: 'field-recording-07.flac', p: '~/Music/Coastal Studies', d: '12:48', k: 'audio' },
     { n: 'seminar-02.mkv', p: '~/Videos/Course', d: '31:07', k: 'video' },
@@ -109,7 +109,7 @@ export const OPEN_FILES: OpenFileRow[] = [
 ];
 
 export const LIBRARY: LibraryRow[] = [
-    { t: 'Screencast — 20 Sep 2026', p: '/media/The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv', d: '—', f: 'WEBM', a: '20 Sep 2026', pl: 0 },
+    { t: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', p: '/home/skye/Videos/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—', f: 'WEBM', a: '20 Sep 2026', pl: 0 },
     { t: 'Lecture 04 — Encoding Theory', p: '~/Videos/Course/lecture-04.mkv', d: '48:31', f: 'MKV', a: '2 Sep 2026', pl: 12 },
     { t: 'Seminar 02 — Colour Spaces', p: '~/Videos/Course/seminar-02.mkv', d: '31:07', f: 'MKV', a: '2 Sep 2026', pl: 9 },
     { t: 'Interview — draft cut', p: '~/Desktop/interview-draft.mp4', d: '22:15', f: 'MP4', a: '30 Aug 2026', pl: 3 },

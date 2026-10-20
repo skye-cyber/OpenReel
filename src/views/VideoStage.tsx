@@ -1,30 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VideoMedia } from '../types';
 import { Button } from '../components/Button';
 import { ContextMenu } from '../components/ContextMenu/Menu';
 import { usePlayer } from "../hooks/player";
 import Icon from '../lib/Icons';
-import { fmt } from '../lib/format';
 import { FullscreenTransport } from '../components/Transport/Fullscreen';
 import type { ContextMenuEntry, ContextMenuItem } from '../types/contextmenu';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { SubtitleOverlay } from '../components/SubtitleOverlay';
-import { useMkvSource } from '../hooks/useMkvSource';
-import { formatTrackLabel } from '../helpers/media';
 
 export function VideoStage({ media }: { media: VideoMedia }) {
     const [visible, setVisible] = useState(true);
-    const mkv = useMkvSource(media.url);
-    const videoSrc = mkv.url ?? media.url;
     const p = usePlayer();
 
     const { state: ctxMenu, open: openCtx, close: closeCtx } = useContextMenu<undefined>();
     const localRef = useRef<HTMLVideoElement | null>(null);
 
     /* Register the element with the context on mount. */
-    useEffect(() => {
-        p.registerVideoElement(localRef.current);
-        return () => p.registerVideoElement(null);
+    const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+        localRef.current = el;
+        p.registerVideoElement(el);
     }, [p.registerVideoElement]);
 
     useEffect(() => {
@@ -41,10 +36,14 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                 p.updateMediaDuration(v.duration);
             }
         };
+
         const onPlay = () => p.syncPlayingFromElement(true);
         const onPause = () => p.syncPlayingFromElement(false);
         const onWaiting = () => p.setBuffering(true);
-        const onPlaying = () => p.setBuffering(false);
+        const onPlaying = () => {
+            if (!p.playing) p.syncPlayingFromElement(true);
+            p.setBuffering(false);
+        }
         const onCanPlay = () => p.setBuffering(false);
         const onProgress = () => {
             if (v.buffered.length > 0) {
@@ -56,22 +55,15 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         };
         const onEnded = () => {
             p.syncPlayingFromElement(false);
-            // Advance queue if autoplay is on, else reset to start.
             if (p.settings.autoplayNext) {
-                // nextItem();
+                p.nextItem();
             } else {
                 p.setPos(0);
                 v.currentTime = 0;
             }
         };
         const onError = () => {
-            // Route to error stage — the media is unplayable.
-            // For the demo, just toast. Real routing depends on the error code.
             p.toast(`Couldn't load ${media.title}`, 'err');
-        };
-        const onVolumeChange = () => {
-            // Element-side volume changes (e.g., by the browser UI) sync back.
-            // Not critical — the app controls volume.
         };
 
         v.addEventListener('timeupdate', onTimeUpdate);
@@ -97,7 +89,11 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             v.removeEventListener('ended', onEnded);
             v.removeEventListener('error', onError);
         };
-    }, [p.setPos, p.setBuffered, p.setBuffering, p.syncPlayingFromElement, p.settings.autoplayNext, media.title, p.toast]);
+    }, [
+        p.setPos, p.setBuffered, p.setBuffering, p.syncPlayingFromElement,
+        p.settings.autoplayNext, p.nextItem, media.title, media.dur,
+        p.toast, p.updateMediaDuration,
+    ]);
 
     /* Fullscreen escape handling. */
     useEffect(() => {
@@ -106,75 +102,44 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         return () => p.popEscapeHandler('fullscreen');
     }, [p.fullscreen, p.toggleFullscreen, p.pushEscapeHandler, p.popEscapeHandler]);
 
+    /* Clear any stale track metadata left over from a previous MKV session. */
     useEffect(() => {
-        p.setAudioTracks(mkv.audioTracks);
-        p.setSubtitleTracks(mkv.subtitleTracks);
-    }, [mkv.audioTracks, mkv.subtitleTracks, p.setAudioTracks, p.setSubtitleTracks]);
+        p.setAudioTracks(null);
+        p.setSubtitleTracks(null);
+    }, [media.id, p.setAudioTracks, p.setSubtitleTracks]);
 
-    const audioMenuItems = (): ContextMenuItem[] => {
-        if (p.audioTracks && p.audioTracks.length > 0) {
-            return p.audioTracks.map((t, i) => (
-                {
-                    label: formatTrackLabel(t.language, t.title, `Audio ${i + 1}`),
-                    onSelect: () => {
-                        p.setAudioTrack(i);
-                        void mkv.setAudioStream(t.streamIndex);
-                        p.toast(`Audio: ${formatTrackLabel(t.language, t.title, `Track ${i + 1}`)} — Undo`);
-                    },
-                    tick: p.audioTrack === i,
-                    separatorBefore: true,
-                }
-            ));
-        }
-        // Fallback for non-MKV media.
-        return [
-            {
-                label: 'English', onSelect: () => { p.setAudioTrack(0); p.toast('Audio: English — Undo'); }, //tick: p.audioTrack === 0
-            },
-            {
-                label: 'German', onSelect: () => { p.setAudioTrack(1); p.toast('Audio: German — Undo'); },
-                //tick: p.audioTrack === 1
-            },
-            {
-                label: 'Commentary', onSelect: () => { p.setAudioTrack(2); p.toast('Audio: Commentary — Undo'); }, //tick: p.audioTrack === 2
-            },
-        ];
-    };
+    /* Fallback context menus for non-MKV media — the mock track names. */
+    const audioMenuItems = (): ContextMenuItem[] => [
+        {
+            label: 'English',
+            onSelect: () => { p.setAudioTrack(0); p.toast('Audio: English — Undo'); },
+            separatorBefore: true,
+        },
+        {
+            label: 'German',
+            onSelect: () => { p.setAudioTrack(1); p.toast('Audio: German — Undo'); },
+        },
+        {
+            label: 'Commentary',
+            onSelect: () => { p.setAudioTrack(2); p.toast('Audio: Commentary — Undo'); },
+        },
+    ];
 
-    const subtitleMenuItems = (): ContextMenuItem[] => {
-        const items: ContextMenuItem[] = [
-            {
-                label: 'Off',
-                onSelect: () => { p.setSubTrack(-1); p.toast('Subtitles off'); },
-                // tick: p.subTrack === -1,
-                separatorBefore: true,
-            },
-        ];
-        if (p.subtitleTracks && p.subtitleTracks.length > 0) {
-            p.subtitleTracks.forEach((t, i) => {
-                items.push({
-                    label: formatTrackLabel(t.language, t.title, `Subtitle ${i + 1}`),
-                    onSelect: () => {
-                        p.setSubTrack(i);
-                        p.toast(`Subtitles: ${formatTrackLabel(t.language, t.title, `Track ${i + 1}`)}`);
-                    },
-                    separatorBefore: true,
-                    // tick: p.subTrack === i,
-                });
-            });
-        } else {
-            // Fallback for non-MKV media.
-            items.push(
-                {
-                    label: 'English', onSelect: () => { p.setSubTrack(0); p.toast('Subtitles: English'); }, //tick: p.subTrack === 0
-                },
-                {
-                    label: 'German', onSelect: () => { p.setSubTrack(1); p.toast('Subtitles: German'); }, //tick: p.subTrack === 1
-                },
-            );
-        }
-        return items;
-    };
+    const subtitleMenuItems = (): ContextMenuItem[] => [
+        {
+            label: 'Off',
+            onSelect: () => { p.setSubTrack(-1); p.toast('Subtitles off'); },
+            separatorBefore: true,
+        },
+        {
+            label: 'English',
+            onSelect: () => { p.setSubTrack(0); p.toast('Subtitles: English'); },
+        },
+        {
+            label: 'German',
+            onSelect: () => { p.setSubTrack(1); p.toast('Subtitles: German'); },
+        },
+    ];
 
     const entries: ContextMenuEntry[] = [
         {
@@ -212,7 +177,6 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         p.settings.defaultAspect === 'fill' ? 'object-cover'
             : p.settings.defaultAspect === 'stretch' ? 'object-fill'
                 : 'object-contain';
-
     return (
         <div className="p-0.5 flex flex-col gap-3.5 h-full min-h-0">
             <div
@@ -221,20 +185,23 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                 className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border-0 border-border shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0"
             >
                 <div className="flex-1 relative">
-                    {/* The real video element. */}
                     <video
-                        ref={localRef}
-                        src={videoSrc || undefined}
+                        ref={setVideoRef}
+                        src={media.url || undefined}
                         className={`absolute inset-0 w-full h-full ${objectFit} bg-black`}
                         playsInline
                         preload="metadata"
                         crossOrigin="anonymous"
-                    >
-                    </video>
-                    <SubtitleOverlay cues={mkv.subtitleTracks?.[p.subTrack]?.cues ?? null} currentTime={p.pos * p.dur} />
+                    />
+                    <SubtitleOverlay
+                        cues={null}
+                        currentTime={p.pos * p.dur}
+                    />
 
                     {/* Title overlay — subtle, doesn't block interaction. */}
-                    <div className={`absolute top-4 left-4.5 z-3 pointer-events-none transition-opacity duration-1000 ${p.fullscreen ? (p.playing ? (visible ? 'opacity-100' : 'opacity-0') : '') : ''}`}
+                    <div
+                        className={`absolute top-4 left-4.5 z-3 pointer-events-none transition-opacity duration-1000 ${p.fullscreen ? (p.playing ? (visible ? 'opacity-100' : 'opacity-0') : '') : ''
+                            }`}
                         aria-hidden={!visible}
                     >
                         <div className="text-[13px] font-semibold text-[#e9ebee] drop-shadow-[0_1px_2px_rgba(0,0,0,.8)]">
@@ -245,7 +212,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                         </div>
                     </div>
 
-                    {/* Play overlay (no media playing) */}
+                    {/* Play overlay */}
                     {!p.offline && !p.playing && (
                         <div className="absolute inset-0 flex items-center justify-center z-2 bg-[rgba(0,0,0,.2)]">
                             <button
@@ -255,14 +222,6 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                             >
                                 <Icon name="play" size={26} />
                             </button>
-                        </div>
-                    )}
-
-                    {/* Playing indicator */}
-                    {p.playing && !p.buffering && !p.offline && !p.fullscreen && (
-                        <div className="hidden absolute left-1/2 bottom-5.5 -translate-x-1/2 z-4 flex items-center gap-2.5 px-4 py-2 rounded-[20px] bg-[rgba(12,14,17,.82)] border border-white/10 text-[#e9ebee] text-[12px] shadow-md whitespace-nowrap animate-fade-up pointer-events none">
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse-dot" />
-                            <span>Playing · {fmt(p.pos * p.dur)} / {fmt(p.dur)}</span>
                         </div>
                     )}
 

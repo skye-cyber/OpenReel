@@ -14,7 +14,8 @@ import { LiveRegion } from './components/Live';
 import { UrlDialog } from './components/UrlDialog';
 import { MediaInfo } from './components/MediaInfo';
 import { CrashRecoveryModal } from './components/CrashRecoveryModal';
-import type { SafeModeReason } from './lib/platform/system';
+import type { SafeModeReason } from './lib/platform/system/shared';
+import type { PersistedPrefs } from './types/persists';
 
 function Shell() {
     const { queueOpen, urlDialogOpen, setUrlDialogOpen, mediaInfoOpen } = usePlayer();
@@ -51,13 +52,19 @@ function Shell() {
 }
 
 interface AppProps {
+    initialPrefs: PersistedPrefs;
     initialSafeMode: boolean;
     initialSafeModeReason: SafeModeReason | null;
 }
 
-export default function App({ initialSafeMode, initialSafeModeReason }: AppProps) {
+export default function App({
+    initialPrefs,
+    initialSafeMode,
+    initialSafeModeReason
+}: AppProps) {
     return (
         <PlayerProvider
+            initialPrefs={initialPrefs}
             initialSafeMode={initialSafeMode}
             initialSafeModeReason={initialSafeModeReason}
         >

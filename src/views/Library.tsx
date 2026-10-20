@@ -187,16 +187,16 @@ export default function Library() {
                             <tr
                                 key={i}
                                 onClick={() => setSelected(i)}
-                                onDoubleClick={() => playMedia(mediaFromLibraryRow(r))}
+                                onDoubleClick={async () => playMedia(await mediaFromLibraryRow(r))}
                                 onContextMenu={e => openCtx(e, r)}
                                 tabIndex={i === safeSel ? 0 : -1}
-                                onKeyDown={e => {
+                                onKeyDown={async (e) => {
                                     if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
                                         openCtx(e, r);
                                     }
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
-                                        playMedia(mediaFromLibraryRow(r));
+                                        playMedia(await mediaFromLibraryRow(r));
                                     }
                                     if (e.key === 'ArrowDown' && i < rows.length - 1) {
                                         e.preventDefault();
@@ -246,7 +246,7 @@ export default function Library() {
                     rows={rows}
                     selected={safeSel}
                     onSelect={setSelected}
-                    onPlay={r => playMedia(mediaFromLibraryRow(r))}
+                    onPlay={async (r) => playMedia(await mediaFromLibraryRow(r))}
                     onContextMenu={(e, r) => openCtx(e, r)}
                 />
             )}

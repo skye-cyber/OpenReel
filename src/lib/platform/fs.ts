@@ -6,6 +6,8 @@
  * returns null on cancel and a filesystem path string on success.
  */
 
+import { isTauri } from './system/shared';
+
 /**
  * Present a folder picker to the user and return the selected path.
  * Returns null if the user cancels.
@@ -16,19 +18,16 @@
  */
 let pickCount = 0;
 const SIMULATED_FOLDERS = [
-    '~/Videos/Course',
-'~/Videos/Recordings',
-'~/Music/Library',
-'~/Downloads/Media',
-'~/Documents/Archives',
+    '~/Videos/',
+    '~/Music/',
+    '~/Downloads/',
 ];
 
 export async function pickFolder(): Promise<string | null> {
-    // Simulate dialog delay.
-    await new Promise(r => setTimeout(r, 400));
-
-    // Occasionally simulate cancel.
-    if (Math.random() < 0.1) return null;
+    if (isTauri) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return invoke<string | null>('pick_folder');
+    }
 
     const path = SIMULATED_FOLDERS[pickCount % SIMULATED_FOLDERS.length]!;
     pickCount++;

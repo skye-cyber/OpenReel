@@ -3,10 +3,28 @@ import { Seg } from '../Segment';
 import { Button } from '../Button';
 import { usePlayer } from "../../hooks/player";
 import type { Deint, Hw, Snap } from '../../types/settings';
+import type { Probe } from '../../views/Welcome';
+import { PlatformTools } from '../../lib/platform/system/tools';
+import { useCallback, useEffect, useState } from 'react';
+import type { HardwareProbe } from '../../types/platform';
 
 export function VideoPanel() {
-    const { settings, setSetting, isChanged, resetSetting, toast } = usePlayer();
+    const { settings, setSetting, isChanged, resetSetting } = usePlayer();
+    const [probe, setProbe] = useState<Probe>(null);
+    const [probeResult, setProbeResult] = useState<HardwareProbe | null>(null);
 
+    const probeHardwareDecoding = useCallback(async () => {
+        try {
+            const result = await PlatformTools.probeHardwareDecoding();
+            setProbeResult(result)
+            setProbe(result.available ? 'ok' : 'no' as Probe);
+        } catch {
+            setProbe('no' as Probe);
+        }
+    }, [])
+    useEffect(() => {
+        probeHardwareDecoding()
+    })
     return (
         <>
             <Group>Decoding</Group>
@@ -28,9 +46,18 @@ export function VideoPanel() {
             />
             <Row
                 title="Detected backend"
-                desc="VA-API (Intel Iris Xe) · unavailable: VDPAU"
+                desc={probe ? `${probeResult?.backend} available` : 'No backend detected    '}
                 control={
-                    <Button size="sm" icon="refresh" onClick={() => toast('Re-detected: VA-API available')}>
+                    <Button size="sm" icon="refresh" onClick={async () => {
+                        setProbe('run');
+                        try {
+                            const result = await PlatformTools.probeHardwareDecoding();
+                            setProbeResult(result);
+                            setProbe(result.available ? 'ok' : 'no' as Probe);
+                        } catch {
+                            setProbe('no' as Probe);
+                        }
+                    }}>
                         Re-detect
                     </Button>
                 }

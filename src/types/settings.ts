@@ -124,7 +124,7 @@ export type SettingKey = keyof Settings;
  *  ============================================================ */
 export interface RowProps {
     title: string;
-    desc: string;
+    desc: string | HTMLElement | React.JSX.Element;
     control: React.ReactNode;
     changed?: boolean;
     onReset?: () => void;
