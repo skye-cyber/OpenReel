@@ -8,6 +8,7 @@ import { FullscreenTransport } from '../components/Transport/Fullscreen';
 import type { ContextMenuEntry, ContextMenuItem } from '../types/contextmenu';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { SubtitleOverlay } from '../components/SubtitleOverlay';
+import { CloseMediaButton } from '../components/mediaButton';
 
 export function VideoStage({ media }: { media: VideoMedia }) {
     const [visible, setVisible] = useState(true);
@@ -44,6 +45,17 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             if (!p.playing) p.syncPlayingFromElement(true);
             p.setBuffering(false);
         }
+        const onLoadedMetadata = () => {
+            const { seek, play } = p.consumePendingPlayback();
+            if (seek !== null && Number.isFinite(v.duration) && v.duration > 0) {
+                try {
+                    v.currentTime = seek;
+                } catch { /* ignore */ }
+            }
+            if (play) {
+                void v.play().catch(() => p.syncPlayingFromElement(false));
+            }
+        };
         const onCanPlay = () => p.setBuffering(false);
         const onProgress = () => {
             if (v.buffered.length > 0) {
@@ -76,6 +88,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         v.addEventListener('progress', onProgress);
         v.addEventListener('ended', onEnded);
         v.addEventListener('error', onError);
+        v.addEventListener('loadedmetadata', onLoadedMetadata);
 
         return () => {
             v.removeEventListener('timeupdate', onTimeUpdate);
@@ -88,6 +101,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             v.removeEventListener('progress', onProgress);
             v.removeEventListener('ended', onEnded);
             v.removeEventListener('error', onError);
+            v.removeEventListener('loadedmetadata', onLoadedMetadata);
         };
     }, [
         p.setPos, p.setBuffered, p.setBuffering, p.syncPlayingFromElement,
@@ -200,16 +214,19 @@ export function VideoStage({ media }: { media: VideoMedia }) {
 
                     {/* Title overlay — subtle, doesn't block interaction. */}
                     <div
-                        className={`absolute top-4 left-4.5 z-3 pointer-events-none transition-opacity duration-1000 ${p.fullscreen ? (p.playing ? (visible ? 'opacity-100' : 'opacity-0') : '') : ''
+                        className={`absolute flex justify-between w-[98%] top-4 left-4.5 z-3 pointer-events-none transition-opacity duration-1000 ${p.fullscreen ? (p.playing ? (visible ? 'opacity-100' : 'opacity-0') : '') : ''
                             }`}
                         aria-hidden={!visible}
                     >
-                        <div className="text-[13px] font-semibold text-[#e9ebee] drop-shadow-[0_1px_2px_rgba(0,0,0,.8)]">
-                            {media.title}
+                        <div>
+                            <div className="text-[13px] font-semibold text-[#e9ebee] drop-shadow-[0_1px_2px_rgba(0,0,0,.8)]">
+                                {media.title}
+                            </div>
+                            <div className="text-[11px] text-[rgba(233,235,238,.6)] mt-0.5 drop-shadow-[0_1px_2px_rgba(0,0,0,.8)]">
+                                {media.sub}
+                            </div>
                         </div>
-                        <div className="text-[11px] text-[rgba(233,235,238,.6)] mt-0.5 drop-shadow-[0_1px_2px_rgba(0,0,0,.8)]">
-                            {media.sub}
-                        </div>
+                        <CloseMediaButton />
                     </div>
 
                     {/* Play overlay */}
@@ -239,7 +256,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                             <Icon name="wifiOff" size={26} weight={1.5} className="text-warning" />
                             <h3 className="text-[15px] font-[650] text-[#e9ebee] m-0">Connection lost</h3>
                             <p className="text-[12.5px] text-[rgba(233,235,238,.55)] m-0 max-w-[46ch] leading-relaxed">
-                                Reconnecting in 5 s — attempt 2 of 5. Your position is preserved.
+                                Reconnecting ...
                             </p>
                             <div className="flex gap-2.5 mt-1.5">
                                 <Button variant="primary" size="sm">Retry now</Button>

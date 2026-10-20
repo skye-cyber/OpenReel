@@ -15,7 +15,6 @@ import type {
 } from '../types';
 import { AUDIO, ERROR_MEDIA, VIDEO, QUEUE as QUEUE_SEED, PLUGINS, ERROR_MISSING, ERROR_PERMISSION, ERROR_CORRUPT, ERROR_NO_AUDIO, ERROR_VIDEO_OUT, ERROR_PLUGIN } from '../data/mock';
 import { fmt } from '../lib/format';
-import { loadPrefs, savePrefs, type PersistedPrefs } from './persistSettings';
 import {
     DEFAULT_SETTINGS,
     type Cat,
@@ -29,18 +28,16 @@ import { getMediaInfo } from '../helpers/media';
 import {
     DEFAULT_FOLDERS,
     isWatchAvailable,
-    scanAll,
-    scanOne,
-    type Folder,
-    type ScanProgress,
-    type ScanResult,
+    scanFolder,
 } from '../lib/platform/library';
-import { pickFolder, labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
+import { labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
 import type { AudioTrackInfo, SubtitleTrackInfo } from '../types/mkvSource';
 import { CrashHandler } from '../lib/platform/system/Crash';
 import type { SafeModeReason } from '../lib/platform/system/shared';
 import { PlatformTools } from '../lib/platform/system/tools';
-
+import type { PersistedPrefs } from '../types/persists';
+import { savePrefs } from './persistSettings';
+import type { Folder } from '../types';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
 
@@ -66,7 +63,7 @@ export function PlayerProvider({
     {
         const [settingCat, setSettingCat] = useState<Cat>('video');
         const [view, setView] = useState<ViewId>('now');
-        const [media, setMedia] = useState<Media | null>(null);
+        const [media, _setMedia] = useState<Media | null>(null);
         const [playing, _setPlaying] = useState(false);
         const [pos, setPos] = useState(0);
         const [audioTrack, setAudioTrack] = useState(0);
@@ -102,12 +99,14 @@ export function PlayerProvider({
         const [catalogs, setCatalogs] = useState<RepositoryCatalog[]>([]);
         const [repositoriesLoading, setRepositoriesLoading] = useState(false);
         const [repositoryError, setRepositoryError] = useState<string | null>(null);
-
+        const [lastScanId, setLastScanId] = useState<string | null>(null)
         // State
         const [safeMode, setSafeMode] = useState<boolean>(initialSafeMode);
         const [safeModeReason, setSafeModeReason] = useState<SafeModeReason | null>(
             initialSafeModeReason
         );
+        const pendingSeekRef = useRef<number | null>(null);
+        const pendingPlayRef = useRef<boolean>(false);
         // Scanning
         const [scan, setScan] = useState<ScanState | null>(null);
         // Read from prefs, falling back to computed defaults if empty:
@@ -135,10 +134,9 @@ export function PlayerProvider({
         */
         const [plugins, setPlugins] = useState<Plugin[]>(() => {
             const persisted = prefs.plugins ?? {};
-            const uninstalled = new Set(prefs.uninstalled ?? []);
-            return PLUGINS
-                .filter(p => !uninstalled.has(p.id))
-                .map(p => (p.id in persisted ? { ...p, on: persisted[p.id]! } : p));
+            return PLUGINS.map(p =>
+            p.id in persisted ? { ...p, on: persisted[p.id]! } : p
+            );
         });
 
         const [settings, setSettings] = useState<Settings>(() => ({
@@ -187,9 +185,22 @@ export function PlayerProvider({
             setSettings(DEFAULT_SETTINGS);
         }, []);
 
-        const updateMediaDuration = useCallback((seconds: number) => {
-            setMedia(m => m ? { ...m, dur: seconds } : m);
+        const setMedia = useCallback((m: Media | null) => {
+            setScene('empty');
+            _setMedia(m);
+            // If clearing media, discard any pending playback intent.
+            if (m === null) {
+                pendingSeekRef.current = null;
+                pendingPlayRef.current = false;
+            }
         }, []);
+
+        const updateMediaDuration = useCallback((seconds: number) => {
+            if (media) {
+                setMedia({ ...media, dur: seconds });
+            }
+        }, [media, setMedia]);
+
 
         useEffect(() => {
             if (libraryMeta.lastScanAt !== null) return;
@@ -215,12 +226,12 @@ export function PlayerProvider({
         // Persist effect
         useEffect(() => {
             const t = setTimeout(() => {
-                const pluginState: Record<string, boolean> = {};
-                for (const p of plugins) pluginState[p.id] = p.on;
+                // const pluginState: Record<string, boolean> = {};
+                // for (const p of plugins) pluginState[p.id] = p.on;
                 savePrefs({
                     v: 1,
                     themePref, vol, muted, speed,
-                    plugins: pluginState,
+                    plugins: plugins,
                     settings,
                     libraryMeta,
                     libraryFolders: folders.map(f => ({
@@ -455,7 +466,7 @@ export function PlayerProvider({
         mediaRef.current = media;
 
         const playMedia = useCallback((m: Media) => {
-            // Save the outgoing item's position before we replace it.
+            // Save outgoing item's position before we replace it.
             const oldMedia = mediaRef.current;
             const oldPos = posRef.current;
             const oldDur = durRef.current;
@@ -463,42 +474,39 @@ export function PlayerProvider({
             if (oldMedia && settings.resumeEnabled && oldDur > 0) {
                 const seconds = oldPos * oldDur;
                 if (seconds >= settings.resumeThreshold) {
-                    Session.set(oldMedia.title, seconds);
+                    Session.set(oldMedia.id, seconds);
                 }
             }
-            setScene(m.kind === 'audio' ? 'audio' : 'video');
 
-            setMedia(m);
-            setView('now');
+            // Determine resume position for the incoming media.
             const saved = Session.get(m.id);
             const shouldResume =
                 settings.resumeEnabled &&
                 saved !== undefined &&
                 saved >= settings.resumeThreshold &&
                 m.dur > 0 &&
-                saved < m.dur * 0.95;   // don't resume within the last 5% — the user is probably near the end and wants to finish
+                saved < m.dur * 0.95;
 
-            // Defer to the element via requestAnimationFrame so React has
-            // committed the new src before we try to seek and play.
-            requestAnimationFrame(() => {
-                const v = videoRef.current;
+            pendingSeekRef.current = shouldResume && saved !== undefined ? saved : 0;
+            pendingPlayRef.current = true;
 
-                if (v) {
-                    if (shouldResume && saved !== undefined) {
-                        v.currentTime = saved;
-                        toast(`Resuming at ${fmt(saved)}`);
-                    } else {
-                        v.currentTime = 0;
-                    }
-                    void v.play().catch(() => {/**/});
-                } else {
-                    // No element (audio stage, or video element not yet mounted).
-                    // Fall back to state-only seek.
-                    seekTo(shouldResume && saved !== undefined ? saved / m.dur : 0);
-                    _setPlaying(false);
-                }
-            });
-        }, [setMedia, setView, seekTo, toast, settings.resumeEnabled, settings.resumeThreshold]);
+            if (shouldResume && saved !== undefined) {
+                toast(`Resuming at ${fmt(saved)}`);
+            }
+
+            setMedia(m);
+            setView('now');
+            setScene(m.kind === 'audio' ? 'audio' : 'video');
+        }, [setMedia, setView, settings.resumeEnabled, settings.resumeThreshold, toast]);
+
+
+        const consumePendingPlayback = useCallback(() => {
+            const seek = pendingSeekRef.current;
+            const play = pendingPlayRef.current;
+            pendingSeekRef.current = null;
+            pendingPlayRef.current = false;
+            return { seek, play };
+        }, []);
 
         const registerVideoElement = useCallback((el: HTMLVideoElement | null) => {
             videoRef.current = el;
@@ -596,10 +604,7 @@ export function PlayerProvider({
         }, [queue, queueIndex, playQueueItem, pos, dur, toast, settings.previousRestartsCurrent]);
 
         // Scan runner — one function that both startScan and addFolderFromPicker share
-        const runScan = useCallback(async (
-            targets: Folder[],
-            scanFn: (onProgress: (p: ScanProgress) => void, isCancelled: () => boolean) => Promise<ScanResult | { items: number; cancelled: boolean }>,
-        ) => {
+        const runScan = useCallback(async (targets: Folder[]) => {
             let cancelled = false;
             cancelRef.current = () => { cancelled = true; };
 
@@ -612,32 +617,61 @@ export function PlayerProvider({
             });
 
             try {
-                const result = await scanFn(
-                    p => setScan(prev => prev ? {
-                        ...prev,
-                        itemsFound: p.itemsFound,
-                        itemsExpected: p.itemsExpected,
-                        currentFolder: p.currentFolder,
-                    } : prev),
-                    () => cancelled,
-                ) as ScanResult;
+                let totalFound = 0;
+                let lastScanId = '';
+
+                // Track per-folder counts so we can write them back to `folders`.
+                const folderCounts: Record<string, number> = {};
+
+                for (const folder of targets) {
+                    if (cancelled) break;
+                    const { itemsFound, scanId } = await scanFolder(folder, (p) => {
+                        setScan(prev => prev ? {
+                            ...prev,
+                            itemsFound: p.itemsFound,
+                            itemsExpected: p.itemsExpected,
+                            currentFolder: p.currentFolder,
+                        } : prev);
+                    });
+                    totalFound += itemsFound;
+                    lastScanId = scanId;
+                    folderCounts[folder.id] = itemsFound;
+                }
 
                 setScan(null);
+
+                // 1. Update folders with their per-folder counts.
+                //    This is what the persist effect reads when saving `libraryFolders`.
+                if (Object.keys(folderCounts).length > 0) {
+                    setFolders(prev => prev.map(f => {
+                        const count = folderCounts[f.id];
+                        return count !== undefined ? { ...f, itemCount: count } : f;
+                    }));
+                }
+
+                // 2. Update libraryMeta with the aggregate.
+                //    `folders.length` matches what the folders state will be after
+                //    the setFolders above commits, and `totalFound` is the sum across
+                //    folders — the same value the persisted `itemCount` should reflect.
                 setLibraryMeta(prev => ({
-                    ...prev,
-                    lastScanAt: result.cancelled ? prev.lastScanAt : Date.now(),
+                    folders: targets.length,
+                    itemCount: cancelled
+                        // Cancelled: keep whatever we found before the stop.
+                        ? totalFound
+                        : totalFound,
+                    lastScanAt: cancelled ? prev.lastScanAt : Date.now(),
                 }));
 
-                if (result.cancelled) {
+                setLastScanId(lastScanId);
+
+                if (cancelled) {
                     toast('Scan cancelled — partial results kept');
                 } else {
-                    const count = (result.itemsFound !== undefined) ? result.itemsFound : '-'
-                    toast(`Scanned ${targets.length} folder${targets.length === 1 ? '' : 's'} · ${count} items`);
+                    toast(`Scanned ${targets.length} folder${targets.length === 1 ? '' : 's'} · ${totalFound.toLocaleString()} items`);
                 }
             } catch (err) {
-                console.error(err)
                 setScan(null);
-                toast(`Scan failed: ${err}`, 'err');
+                toast(`Scan failed: ${err instanceof Error ? err.message : String(err)}`, 'err');
             }
         }, [toast]);
 
@@ -651,9 +685,9 @@ export function PlayerProvider({
 
         // Public scan actions:
         // PS1
-        const startScan = useCallback(() => {
+        const startScan = useCallback(async () => {
             if (scan?.inProgress) return;
-            void runScan(folders, (onProgress, isCancelled) => scanAll(folders, onProgress, isCancelled));
+            await runScan(folders);
         }, [folders, scan, runScan]);
 
         // PS2
@@ -689,10 +723,7 @@ export function PlayerProvider({
 
             setFolders(prev => [...prev, folder]);
 
-            await runScan([folder], (onProgress, isCancelled) =>
-                scanOne(folder, onProgress, isCancelled),
-            );
-            console.log("SCAN:", folder, folders)
+            await runScan([folder]);
         }, [scan, folders, toast, runScan]);
 
         const removeFolder = useCallback((folderId: string) => {
@@ -868,6 +899,8 @@ export function PlayerProvider({
          *    Scene switcher
          *    -------------------------------------------------------- */
         const applyScene = useCallback((id: string) => {
+            pendingSeekRef.current = null;
+            pendingPlayRef.current = false;
             setScene(id);
             setModal(null);
             setAdvanced(false);
@@ -972,7 +1005,9 @@ export function PlayerProvider({
             // Media info
             mediaInfoOpen, setMediaInfoOpen, getMediaInfo,
             // Scanning
-            libraryMeta, scan, startScan, cancelScan,
+            libraryMeta, scan, startScan, cancelScan, lastScanId, setLastScanId,
+            // Pref
+            prefs,
             // Plugin repository
             availableEntries, addRepository, removeRepository, refreshRepositories, installFromRepository,
             repositories, catalogs, repositoriesLoading, repositoryError,
@@ -981,7 +1016,8 @@ export function PlayerProvider({
             registerVideoElement, updateMediaDuration, watchAvailable,
             audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks,
             // Crash
-            exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason
+            exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason,
+            consumePendingPlayback
         }), [
             // ---- Must mirror the value object field-for-field ----
             theme, themePref, systemDark,
@@ -1015,7 +1051,7 @@ export function PlayerProvider({
             // Media info
             mediaInfoOpen, setMediaInfoOpen,
             // Scanning
-            libraryMeta, scan, startScan, cancelScan,
+            libraryMeta, scan, startScan, cancelScan, lastScanId, setLastScanId,
             // Plugin repository
             availableEntries, addRepository, removeRepository, refreshRepositories, installFromRepository,
             repositories, catalogs, repositoriesLoading, repositoryError,
@@ -1024,7 +1060,10 @@ export function PlayerProvider({
             registerVideoElement, updateMediaDuration, watchAvailable,
             audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks,
             // Crash
-            exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason
+            exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason,
+            consumePendingPlayback,
+            //prefs
+            prefs,
         ]);
 
         return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

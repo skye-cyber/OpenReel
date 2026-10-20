@@ -13,6 +13,18 @@ export type ViewId =
 
 export type MediaKind = 'video' | 'audio' | 'error';
 
+/** A folder indexed by the library. */
+export interface Folder {
+  /** Stable id, derived from the path (see `idForFolderPath` in fs.ts). */
+  id: string;
+  /** Absolute filesystem path. Must be resolvable — no `~` shorthand. */
+  path: string;
+  /** Display label — usually the folder's basename. */
+  label: string;
+  /** Cached item count from the last scan. 0 until first scan. */
+  itemCount: number;
+}
+
 export interface VideoMedia {
   kind: 'video';
   id: string;
@@ -107,17 +119,6 @@ export interface QueueItem {
 
 export type PluginStatus = 'ok' | 'conflict' | 'failed' | 'incompat';
 
-export interface Plugin {
-  id: string;
-  n: string;
-  p: string;
-  v: string;
-  c: string;
-  d: string;
-  on: boolean;
-  st: PluginStatus;
-  err?: string;
-}
 
 export interface Scene {
   id: string;
@@ -170,15 +171,15 @@ export interface PluginActivity {
 
 export interface Plugin {
   id: string;
-  n: string;
-  p: string;              // provider
-  v: string;              // version
-  c: string;              // category
-  d: string;              // one-line description
+  name: string;
+  provider: string;              // provider
+  version: string;              // version
+  category: string;              // category
+  description: string;              // one-line description
   long?: string;          // paragraph-length description for the detail view
   homepage?: string;      // URL opened in the system browser
   on: boolean;
-  st: PluginStatus;
+  status: PluginStatus;
   err?: string;
   /** Permission IDs this plugin declares. */
   permissions?: PluginPermissionId[];
@@ -208,4 +209,10 @@ export interface LibraryMeta {
   folders: number;
   itemCount: number;
   lastScanAt: number | null;
+}
+
+export interface ScanProgress {
+  itemsFound: number,
+  itemsExpected: number,
+  currentFolder: string,
 }

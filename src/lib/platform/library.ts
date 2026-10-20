@@ -1,149 +1,117 @@
-/**
- * Library scanning — platform boundary.
- *
- * TODO(tauri): replace the simulated scan with a real recursive directory
- * walk (`invoke('scan_folder', { path })`) that returns the actual file
- * list. The simulation exists so the UI has something to react to.
- */
-
+import { invoke, Channel } from '@tauri-apps/api/core';
 import { isTauri } from './system/shared';
+import type {
+    LibraryFile,
+    MediaProbe,
+    ScanResultSingle,
+} from '../../types/library';
+import type { Folder, ScanProgress } from '../../types';
 
-export interface Folder {
-    id: string;
-    path: string;
-    label: string;
-    /** Simulated file count for the demo. Real value comes from the walk. */
-    itemCount: number;
-}
-
-export interface ScanProgress {
-    /** Zero-based index of the folder being scanned. */
-    folderIndex?: number;
-    /** Total folders being scanned. */
-    folderCount?: number;
-    /** Items discovered so far across all folders. */
-    itemsFound: number;
-    /** Total items expected across all folders. */
-    itemsExpected: number;
-    /** The folder currently being walked. */
-    currentFolder: string;
-}
-
-export interface ScanResult {
-    folders: Folder[];
-    itemsFound: number;
-    cancelled: boolean;
-}
-
-export const DEFAULT_FOLDERS: Folder[] = [
-    { id: 'videos', label: 'Videos', path: '~/Videos', itemCount: 3240 },
-    { id: 'music', label: 'Music', path: '~/Music', itemCount: 990 },
-];
 
 /**
- * Simulate scanning one folder. Yields ~20 progress updates per folder,
- * each after a short delay proportional to the folder's size.
+ * Default folders for first launch. Empty until the user adds one
+ * via the picker — no hardcoded `~` paths because they can't be
+ * resolved by the filesystem walk without expansion.
  */
-async function simulateFolder(
+export const DEFAULT_FOLDERS: Folder[] = [];
+
+
+/**
+ * Scan a single folder. Returns the file count and a scan id that can
+ * be used to paginate the cached file list via `getLibraryPage`.
+ */
+export async function scanFolder(
     folder: Folder,
-    startCount: number,
-    folderIndex: number,
-    folderCount: number,
-    totalExpected: number,
     onProgress: (p: ScanProgress) => void,
-    isCancelled: () => boolean,
-): Promise<ScanResult> {
+): Promise<{ itemsFound: number; scanId: string }> {
+    if (!isTauri) {
+        return scanFolderSimulated(folder, onProgress);
+    }
+
+    const channel = new Channel<{
+        itemsFound: number;
+        itemsExpected: number;
+        currentFolder: string;
+    }>();
+
+    channel.onmessage = (msg) => {
+        onProgress({
+            itemsFound: msg.itemsFound,
+            itemsExpected: msg.itemsExpected,
+            currentFolder: msg.currentFolder,
+        });
+    };
+
+    const [result, scanId] = await invoke<[ScanResultSingle, string]>('scan_folder', {
+        path: folder.path,
+        folderId: folder.id,
+        onProgress: channel,
+    });
+
+    return { itemsFound: result.itemsFound, scanId };
+}
+
+/**
+ * Fetch a page of files from a cached scan.
+ */
+export async function getLibraryPage(
+    scanId: string,
+    offset: number,
+    limit: number,
+): Promise<LibraryFile[]> {
+    if (!isTauri) return [];
+    return invoke<LibraryFile[]>('get_library_page', { scanId, offset, limit });
+}
+
+/**
+ * Probe a media file for duration and codec info via ffprobe.
+ * Returns a zero-valued probe if ffprobe isn't installed.
+ */
+export async function probeMediaFile(path: string): Promise<MediaProbe> {
+    if (!isTauri) {
+        return { duration: 0, hasVideo: false, hasAudio: false, videoCodec: '', audioCodec: '' };
+    }
+    return invoke<MediaProbe>('probe_media_file', { path });
+}
+
+// Browser: simulated scan
+async function scanFolderSimulated(
+    folder: Folder,
+    onProgress: (p: ScanProgress) => void,
+): Promise<{ itemsFound: number; scanId: string }> {
     const STEPS = 20;
     const stepItems = Math.floor(folder.itemCount / STEPS);
     const stepMs = 120;
-    let found = 0;
 
     for (let i = 1; i <= STEPS; i++) {
-        if (isCancelled()) return { folders: [], itemsFound: 0, cancelled: true };
         await new Promise(r => setTimeout(r, stepMs));
-        found = i === STEPS ? folder.itemCount : stepItems * i;
+        const found = i === STEPS ? folder.itemCount : stepItems * i;
         onProgress({
-            folderIndex,
-            folderCount,
-            itemsFound: startCount + found,
-            itemsExpected: totalExpected,
+            itemsFound: found,
+            itemsExpected: folder.itemCount,
             currentFolder: folder.label,
         });
     }
 
-    return { folders: [folder], itemsFound: folder.itemCount, cancelled: false };
+    return { itemsFound: folder.itemCount, scanId: `simulated-${folder.id}` };
 }
 
-export async function scanAll(
-    folders: Folder[],
-    onProgress: (p: ScanProgress) => void,
-    isCancelled: () => boolean = () => false,
-): Promise<ScanResult> {
-    const totalExpected = folders.reduce((n, f) => n + f.itemCount, 0);
-    let total = 0;
-
-    for (let i = 0; i < folders.length; i++) {
-        const folder = folders[i];
-        if (!folder) continue;
-        const { itemsFound, cancelled } = await simulateFolder(
-            folder, total, i, folders.length, totalExpected, onProgress, isCancelled,
-        );
-        total += itemsFound;
-        if (cancelled) {
-            return { folders, itemsFound: total, cancelled: true };
-        }
-    }
-
-    return { folders, itemsFound: total, cancelled: false };
-}
-
-export async function scanOne(
-    folder: Folder,
-    onProgress: (p: ScanProgress) => void,
-    isCancelled: () => boolean = () => false,
-): Promise<ScanResult | { items: number; cancelled: boolean }> {
-    if (isTauri) {
-        const { invoke, Channel } = await import('@tauri-apps/api/core');
-        const channel = new Channel<{ items_found: number; items_expected: number }>();
-        channel.onmessage = (msg) => {
-            onProgress({
-                folderIndex: 0,
-                folderCount: 1,
-                itemsFound: msg.items_found,
-                itemsExpected: msg.items_expected,
-                currentFolder: folder.label,
-            });
-        };
-        const result = await invoke<{ items_found: number; cancelled: boolean }>('scan_folder', {
-            path: folder.path,
-            onProgress: channel,
-        });
-        return { items: result.items_found, cancelled: result.cancelled };
-    }
-    return simulateFolder(folder, 0, 0, 1, folder.itemCount, onProgress, isCancelled);
-}
-
+ // Watch folders
 export async function watchFolder(
     folder: Folder,
     onChange: () => void,
 ): Promise<() => void> {
-    if (isTauri) {
-        const { listen } = await import('@tauri-apps/api/event')
-        const { invoke } = await import('@tauri-apps/api/core');
-        const id = await invoke<string>('watch_folder', { path: folder.path });
-        const unlisten = await listen(`folder-changed:${id}`, onChange);
-        return () => {
-            void unlisten();
-            void invoke('unwatch_folder', { id });
-        };
-    }
-    return () => { };
+    if (!isTauri) return () => { };
+
+    const { listen } = await import('@tauri-apps/api/event');
+    const id = await invoke<string>('watch_folder', { path: folder.path });
+    const unlisten = await listen(`folder-changed:${id}`, onChange);
+    return () => {
+        void unlisten();
+        void invoke('unwatch_folder', { id });
+    };
 }
 
-/**
- * Whether folder watching is available on this platform/build.
- * False until the backend is connected.
- */
 export function isWatchAvailable(): boolean {
     return isTauri;
 }

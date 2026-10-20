@@ -132,18 +132,18 @@ export const QUEUE: QueueItem[] = [
 export const PLUGINS: Plugin[] = [
     {
         id: 'subtitle',
-        n: 'Subtitle Finder',
-        p: 'OpenReel Community',
-        v: '2.1.0',
-        c: 'Subtitle provider',
-        d: 'Searches configured providers for matching subtitles and loads them into the current session.',
+        name: 'Subtitle Finder',
+        provider: 'OpenReel Community',
+        version: '2.1.0',
+        category: 'Subtitle provider',
+        description: 'Searches configured providers for matching subtitles and loads them into the current session.',
         long:
             'Subtitle Finder searches a set of subtitle providers using the current file\'s hash, ' +
             'name, and duration, and offers the best matches. It only reads file metadata — it does ' +
             'not open your media files themselves — and it only reaches the network when you ask it to.',
         homepage: 'https://plugins.example.org/subtitle-finder',
         on: true,
-        st: 'ok',
+        status: 'ok',
         signed: true,
         apiVersion: '1.4',
         size: '412 KB',
@@ -159,18 +159,18 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'spec',
-        n: 'Spectrum Overlay',
-        p: 'A. Reyes',
-        v: '0.9.3',
-        c: 'Visualiser',
-        d: 'Draws an audio spectrum over the video surface or the audio stage.',
+        name: 'Spectrum Overlay',
+        provider: 'A. Reyes',
+        version: '0.9.3',
+        category: 'Visualiser',
+        description: 'Draws an audio spectrum over the video surface or the audio stage.',
         long:
             'Spectrum Overlay renders a live frequency spectrum using the current audio stream. ' +
             'It can draw into the video surface or, in audio-only playback, replace the artwork ' +
             'area. It does not modify the audio itself.',
         homepage: 'https://github.com/areyes/spectrum-overlay',
         on: false,
-        st: 'conflict',
+        status: 'conflict',
         signed: false,
         apiVersion: '1.3',
         size: '188 KB',
@@ -185,11 +185,11 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'viz',
-        n: 'OpenReel Visualizer',
-        p: 'OpenReel',
-        v: '1.4.0',
-        c: 'Visualiser',
-        d: 'Audio-reactive visualisations for audio-only playback.',
+        name: 'OpenReel Visualizer',
+        provider: 'OpenReel',
+        version: '1.4.0',
+        category: 'Visualiser',
+        description: 'Audio-reactive visualisations for audio-only playback.',
         long:
             'The bundled visualiser ships with OpenReel and provides several audio-reactive ' +
             'scenes for audio-only playback. It reads the audio stream as it plays and draws into ' +
@@ -197,7 +197,7 @@ export const PLUGINS: Plugin[] = [
             'to static artwork.',
         homepage: 'https://openreel.example.org/docs/visualizer',
         on: true,
-        st: 'ok',
+        status: 'ok',
         signed: true,
         apiVersion: '1.4',
         size: '624 KB',
@@ -212,16 +212,16 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'av1',
-        n: 'AV1 Decoder Pack',
-        p: 'vendor-x',
-        v: '1.0.4',
-        c: 'Codec',
-        d: 'Provides an additional AV1 decoding path for software playback.',
+        name: 'AV1 Decoder Pack',
+        provider: 'vendor-x',
+        version: '1.0.4',
+        category: 'Codec',
+        description: 'Provides an additional AV1 decoding path for software playback.',
         long:
             'An alternative AV1 decoder for systems where hardware decoding is unavailable or ' +
             'unreliable. It reads media files you open and does not contact the network.',
         on: false,
-        st: 'failed',
+        status: 'failed',
         err: 'missing symbol libav1_decode_init',
         signed: true,
         apiVersion: '1.2',
@@ -237,16 +237,16 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'rec',
-        n: 'Stream Recorder',
-        p: 'third-party',
-        v: '3.0.0',
-        c: 'Capture',
-        d: 'Records network streams to disk while you watch.',
+        name: 'Stream Recorder',
+        provider: 'third-party',
+        version: '3.0.0',
+        category: 'Capture',
+        description: 'Records network streams to disk while you watch.',
         long:
             'Stream Recorder captures network streams to a file while you watch. It reads the ' +
             'stream data and writes to your disk.',
         on: false,
-        st: 'incompat',
+        status: 'incompat',
         err: 'Requires OpenReel 1.5 or newer (you have 1.4.2)',
         signed: false,
         apiVersion: '1.5',

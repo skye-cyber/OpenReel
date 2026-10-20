@@ -1,7 +1,7 @@
 import { type Settings } from '../types/settings';
-import type { ThemePref, LibraryMeta } from '../types';
+import type { ThemePref, LibraryMeta, Plugin } from '../types';
 import type { Repository } from './plugins';
-import type { Folder } from '../lib/platform/library';
+import type { Folder } from '../types';
 
 export interface PersistedPrefs {
     v: 1;
@@ -9,7 +9,7 @@ export interface PersistedPrefs {
     vol: number;
     muted: boolean;
     speed: number;
-    plugins: Record<string, boolean>;
+    plugins: Plugin[];
     settings: Partial<Settings>;
     libraryMeta: LibraryMeta;
     libraryFolders: Folder[];

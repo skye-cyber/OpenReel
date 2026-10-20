@@ -3,6 +3,7 @@ import type { AudioMedia } from '../types';
 import { usePlayer } from '../hooks/player';
 import { WAVE, fmt } from '../lib/format';
 import { Chip } from '../components/Chip';
+import { CloseMediaButton } from '../components/mediaButton';
 
 export function AudioStage({ media }: { media: AudioMedia }) {
     const p = usePlayer();
@@ -105,8 +106,8 @@ export function AudioStage({ media }: { media: AudioMedia }) {
 
     /* Clear any stale track metadata from previous MKV sessions. */
     useEffect(() => {
-        p.setAudioTracks(null);
-        p.setSubtitleTracks(null);
+        p.setAudioTracks([]);
+        p.setSubtitleTracks([]);
     }, [media.id, p.setAudioTracks, p.setSubtitleTracks]);
 
     const playedCount = Math.round(p.pos * WAVE.length);
@@ -118,10 +119,9 @@ export function AudioStage({ media }: { media: AudioMedia }) {
     };
 
     return (
-        <div className="min-h-full flex items-center justify-center p-11 px-6 relative
+        <div className="relative min-h-full flex items-center justify-center p-11 px-6 relative
         before:content-[''] before:absolute before:inset-0 before:pointer-events-none
         before:bg-[radial-gradient(560px_340px_at_50%_30%,var(--color-accent-soft),transparent_72%)]">
-
             {/* Hidden video element — carries the audio stream. */}
             <video
                 ref={setVideoRef}
@@ -132,8 +132,7 @@ export function AudioStage({ media }: { media: AudioMedia }) {
             />
 
             <div className="w-full max-w-[480px] flex flex-col items-center relative">
-                <div className="w-[210px] h-[210px] rounded-lg overflow-hidden relative
-        shadow-[0_24px_56px_rgba(0,0,0,.55)] border border-border-2 mb-6.5 shrink-0">
+                <div className="w-[210px] h-[210px] rounded-lg overflow-hidden relative shadow-[0_24px_56px_rgba(0,0,0,.55)] border border-border-2 mb-6.5 shrink-0">
                     <svg viewBox="0 0 200 200" aria-hidden="true" className="absolute inset-0 w-full h-full">
                         <defs>
                             <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
@@ -155,8 +154,7 @@ export function AudioStage({ media }: { media: AudioMedia }) {
                 <div className="text-[20px] font-[670] tracking-[-.02em] text-center mb-1.5">{media.title}</div>
                 <div className="text-[13px] text-text-2 text-center">{media.artist}</div>
                 <div className="text-[11.5px] text-text-3 text-center mt-0.5">{media.album} · {media.year}</div>
-                <div className="text-[11px] text-text-3 text-center mt-3 tabular-nums px-3 py-1 rounded-[20px]
-        bg-surface border border-border">
+                <div className="text-[11px] text-text-3 text-center mt-3 tabular-nums px-3 py-1 rounded-[20px] bg-surface border border-border">
                     {media.meta}
                 </div>
 

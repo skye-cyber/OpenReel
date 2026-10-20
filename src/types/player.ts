@@ -10,6 +10,7 @@ import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
 import type { Folder } from "../lib/platform/library";
 import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
 import type { SafeModeReason } from "../lib/platform/system/shared";
+import type { PersistedPrefs } from "./persists";
 
 
 export interface MediaInfoStream {
@@ -194,4 +195,10 @@ export interface PlayerState {
     safeModeReason: SafeModeReason | null;
     enterSafeMode: (reason: SafeModeReason) => void;
     exitSafeModeAndReload: () => void;
+
+    consumePendingPlayback: () => { seek: number | null; play: boolean };
+    lastScanId: string | null;
+    setLastScanId: (id: string | null) => void;
+    //Pref
+    prefs: PersistedPrefs;
 }

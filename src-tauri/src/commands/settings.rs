@@ -49,12 +49,25 @@ pub async fn write_settings(app: AppHandle, data: Value) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn reset_settings(app: &AppHandle) -> std::io::Result<()> {
-    paths::ensure_json_file(
-        &paths::settings_file(&app),
-                     "{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {},\n  \"settings\": {},\n  \"libraryMeta\": { \"folders\": 0, \"itemCount\": 0, \"lastScanAt\": null },\n  \"libraryFolders\": [],\n  \"repositories\": [],\n  \"subTrack\": -1\n}\n",
-    )?;
-    log::info!("Settings rest seccessfully");
+pub fn reset_settings(app: AppHandle) -> Result<(), String> {
+    let folders = paths::default_media_folders();
+    let folders_json = serde_json::to_string(&folders)
+    .unwrap_or_else(|_| "[]".to_string());
+
+    let content = format!(
+        "{{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {{}},\n  \"settings\": {{}},\n  \"libraryMeta\": {{ \"folders\": {}, \"itemCount\": 0, \"lastScanAt\": null }},\n  \"libraryFolders\": {},\n  \"repositories\": [],\n  \"subTrack\": -1\n}}\n",
+        folders.len(),
+                          folders_json,
+    );
+
+    let path = paths::settings_file(&app);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+        .map_err(|e| format!("create dir {}: {e}", parent.display()))?;
+    }
+    std::fs::write(&path, content)
+    .map_err(|e| format!("write {}: {e}", path.display()))?;
+    log::info!("Settings reset successfully");
     Ok(())
 }
 

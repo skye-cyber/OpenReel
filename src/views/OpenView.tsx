@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { Seg } from '../components/Segment';
 import { usePlayer } from "../hooks/player";
-import { OPEN_FILES, VIDEO } from '../data/mock';
+import { OPEN_FILES } from '../data/mock';
 import { mediaFromOpenFile } from '../helpers/herpers';
 
 type Filter = 'media' | 'all';

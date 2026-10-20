@@ -11,8 +11,8 @@ export function PluginRow({
     plugin: p, onToggle, onDetails,
 }: { plugin: Plugin; onToggle: () => void; onDetails: () => void }) {
     const borderCls =
-        p.st === 'failed' ? 'border-[rgba(224,100,92,.3)] bg-danger-dim'
-            : p.st === 'conflict' ? 'border-[rgba(217,161,59,.3)] bg-warning-dim'
+        p.status === 'failed' ? 'border-[rgba(224,100,92,.3)] bg-danger-dim'
+            : p.status === 'conflict' ? 'border-[rgba(217,161,59,.3)] bg-warning-dim'
                 : 'border-border bg-surface';
 
     return (
@@ -25,19 +25,19 @@ export function PluginRow({
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-[12.5px] font-[620] flex items-center gap-2.5 flex-wrap">
-                        {p.n}
-                        <Chip style={{ height: 18, fontSize: 10 }}>{p.c}</Chip>
-                        {p.st === 'ok' && p.on && <Chip tone="ok" style={{ height: 18, fontSize: 10 }}>Enabled</Chip>}
-                        {p.st === 'ok' && !p.on && <Chip style={{ height: 18, fontSize: 10 }}>Disabled</Chip>}
-                        {p.st === 'conflict' && <Chip tone="warn" icon="warn" style={{ height: 18, fontSize: 10 }}>Conflict</Chip>}
-                        {p.st === 'failed' && <Chip tone="err" icon="alert" style={{ height: 18, fontSize: 10 }}>Failed</Chip>}
-                        {p.st === 'incompat' && <Chip tone="warn" style={{ height: 18, fontSize: 10 }}>Incompatible</Chip>}
+                        {p.name}
+                        <Chip style={{ height: 18, fontSize: 10 }}>{p.category}</Chip>
+                        {p.status === 'ok' && p.on && <Chip tone="ok" style={{ height: 18, fontSize: 10 }}>Enabled</Chip>}
+                        {p.status === 'ok' && !p.on && <Chip style={{ height: 18, fontSize: 10 }}>Disabled</Chip>}
+                        {p.status === 'conflict' && <Chip tone="warn" icon="warn" style={{ height: 18, fontSize: 10 }}>Conflict</Chip>}
+                        {p.status === 'failed' && <Chip tone="err" icon="alert" style={{ height: 18, fontSize: 10 }}>Failed</Chip>}
+                        {p.status === 'incompat' && <Chip tone="warn" style={{ height: 18, fontSize: 10 }}>Incompatible</Chip>}
                     </div>
                     <div className="text-[11.5px] text-text-3 mt-0.5 truncate">
-                        {p.p} · v{p.v} · {p.d}
+                        {p.provider} · v{p.version} · {p.description}
                     </div>
                 </div>
-                <Switch on={p.on} onChange={onToggle} label={`Enable ${p.n}`} />
+                <Switch on={p.on} onChange={onToggle} label={`Enable ${p.name}`} />
                 <IconButton icon="chevRight" size={15} title="Details" onClick={onDetails} />
             </div>
 
@@ -53,7 +53,7 @@ export function PluginRow({
                 </div>
             )}
 
-            {p.st === 'failed' && (
+            {p.status === 'failed' && (
                 <div className="rounded-md p-[10px_14px] text-[12px] leading-relaxed -mt-0.5 mb-2.5
                         bg-danger-dim border border-[rgba(224,100,92,.3)] text-text">
                     Failed to load — <em>{p.err}</em>
@@ -63,7 +63,7 @@ export function PluginRow({
                 </div>
             )}
 
-            {p.st === 'incompat' && (
+            {p.status === 'incompat' && (
                 <div className="rounded-md p-[10px_14px] text-[12px] leading-relaxed -mt-0.5 mb-2.5
                         bg-surface-2 border border-border text-text-2">
                     {p.err} — this plugin can't be enabled on this build.

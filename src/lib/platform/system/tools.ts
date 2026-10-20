@@ -7,7 +7,8 @@ import type {
     PlatformInfo,
     UpdateCheckResult
 } from "../../../types/platform";
-import type { ScanProgress, ScanResult } from "../library";
+import type { ScanProgress } from "../../../types";
+import type { ScanResult } from "../../../types/library";
 
 class PlatformToolsImpl {
     async probeHardwareDecoding(): Promise<HardwareProbe> {

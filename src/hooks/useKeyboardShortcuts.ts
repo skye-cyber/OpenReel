@@ -71,6 +71,14 @@ export function useKeyboardShortcuts() {
                 return;
             }
 
+            if (mod && !shift && e.key.toLowerCase() === 'w') {
+                e.preventDefault();
+                if (p.hasMedia) {
+                    p.setMedia(null);
+                    p.toast('Media closed');
+                }
+                return;
+            }
             /* ---------- View shortcuts ---------- */
             if (mod && !shift && !e.altKey) {
                 switch (e.key) {

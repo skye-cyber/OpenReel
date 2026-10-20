@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '../../lib/Icons';
 import { usePlayer } from '../../hooks/player';
 import { Bar } from './Bar';
@@ -29,8 +29,16 @@ export function Transport() {
     const AUDIO_TRACKS = p.audioTracks //?? FALLBACK_AUDIO_TRACKS;
     const SUB_TRACKS = p.subtitleTracks //?? FALLBACK_SUB_TRACKS;
     const dur = p.media?.dur ?? 0;
+    const [windowWidth, setWindowWidth] = useState<number>()
     const toggle = (name: Exclude<OpenMenu, null>) =>
         setOpenMenu(prev => (prev === name ? null : name));
+
+    useEffect(() => {
+        setWindowWidth(window.innerWidth)
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     return (
         <div className="shrink-0 bg-surface border-t border-border relative z-50">
@@ -182,7 +190,7 @@ export function Transport() {
                         onClick={() => p.setAdvanced(!p.advanced)}
                     />
                     <Pill
-                        label="Media info"
+                        label={(windowWidth && windowWidth > 900) ? "Media info" : 'Info'}
                         onClick={() => p.setMediaInfoOpen(!p.mediaInfoOpen)}
                         active={p.mediaInfoOpen}
                     />

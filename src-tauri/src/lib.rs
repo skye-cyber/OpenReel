@@ -2,6 +2,7 @@ mod commands;
 mod paths;
 mod stream_protocol;
 mod http_server;
+pub mod state;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -312,10 +313,13 @@ pub fn run() {
     commands::library::scan_folder,
     commands::library::watch_folder,
     commands::library::unwatch_folder,
+    commands::library::get_library_page,
+    commands::library::probe_media_file,
     commands::plugins::fetch_repository,
     commands::settings::read_settings,
     commands::settings::write_settings,
     commands::settings::get_base_dir,
+    commands::settings::reset_settings,
     http_server::get_stream_port,
   ])
     .setup(|app| {

@@ -30,7 +30,7 @@ export function StatusStrip() {
             {offline && (
                 <>
                     <Icon name="wifiOff" size={13} className="text-warning" />
-                    <span>Reconnecting — attempt 2 of 5</span>
+                    <span>Reconnecting ...</span>
                 </>
             )}
             <div className="flex-1" />

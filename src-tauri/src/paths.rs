@@ -171,15 +171,67 @@ pub fn ensure_json_file(path: &PathBuf, initial: &str) -> std::io::Result<()> {
 pub fn ensure_data_files(app: &AppHandle) -> std::io::Result<()> {
     ensure_data_dirs(app)?;
 
-    ensure_json_file(
-        &settings_file(app),
-                     "{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {},\n  \"settings\": {},\n  \"libraryMeta\": { \"folders\": 0, \"itemCount\": 0, \"lastScanAt\": null },\n  \"libraryFolders\": [],\n  \"repositories\": [],\n  \"subTrack\": -1\n}\n",
-    )?;
+    let folders = default_media_folders();
+    let folders_json = serde_json::to_string(&folders)
+    .unwrap_or_else(|_| "[]".to_string());
+
+    let content = format!(
+        "{{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {{}},\n  \"settings\": {{}},\n  \"libraryMeta\": {{ \"folders\": {}, \"itemCount\": 0, \"lastScanAt\": null }},\n  \"libraryFolders\": {},\n  \"repositories\": [],\n  \"subTrack\": -1\n}}\n",
+        folders.len(),
+                          folders_json,
+    );
 
     ensure_json_file(
+        &settings_file(app),
+        &content,
+    )?;
+    ensure_json_file(
         &plugin_state_file(app),
-                     "{\n  \"enabled\": {}\n}\n",
+        "{\n  \"enabled\": {}\n}\n",
     )?;
 
     Ok(())
+}
+
+/// Return the platform's standard media folders that exist on disk.
+///
+/// Used to seed `libraryFolders` on first launch and on reset. Only
+/// returns folders whose paths actually exist — an empty array if
+/// none do, which is fine (the user can add one manually).
+///
+/// Each entry matches the `Folder` shape the frontend expects:
+/// `{ id, label, path, itemCount }`.
+pub fn default_media_folders() -> Vec<serde_json::Value> {
+    use serde_json::json;
+
+    let Some(home) = dirs::home_dir() else {
+        return Vec::new();
+    };
+
+    // Ordered by how commonly they hold media. The frontend seeds the
+    // library from this list; order affects only the display order in
+    // Settings → Library.
+    let candidates: &[(&str, &str)] = &[
+        ("Videos",     "Videos"),
+        ("Music",      "Music"),
+        ("Downloads",  "Downloads"),
+        ("Documents",  "Documents"),
+        ("Desktop",    "Desktop"),
+    ];
+
+    let mut out = Vec::new();
+    for (subdir, label) in candidates {
+        let path = home.join(subdir);
+        if !path.is_dir() {
+            continue;
+        }
+        let path_str = path.to_string_lossy().to_string();
+        out.push(json!({
+            "id": format!("default-{}", subdir.to_lowercase()),
+                       "label": label,
+                       "path": path_str,
+                       "itemCount": 0,
+        }));
+    }
+    out
 }

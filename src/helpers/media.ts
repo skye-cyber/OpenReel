@@ -101,6 +101,15 @@ export function formatTrackLabel(language: string | null, title: string | null, 
     return fallback;
 }
 
+export function formatDuration(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds <= 0) return '—';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 export const LANG_NAMES: Record<string, string> = {
     eng: 'English', ger: 'German', deu: 'German', fre: 'French', fra: 'French',
     spa: 'Spanish', ita: 'Italian', jpn: 'Japanese', chi: 'Chinese', zho: 'Chinese',

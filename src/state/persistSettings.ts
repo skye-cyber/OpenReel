@@ -103,3 +103,21 @@ export async function clearPrefs(): Promise<void> {
         window.localStorage.removeItem(BROWSER_KEY);
     } catch { /* ignore */ }
 }
+
+/**
+ * Reset all settings to platform-seeded defaults.
+ *
+ * In Tauri, calls `reset_settings` which overwrites settings.json with
+ * defaults that include the user's actual media folders (~/Videos,
+ * ~/Music, etc.) as seeded libraryFolders.
+ *
+ * In the browser, falls back to clearing localStorage, which causes
+ * loadPrefs to return DEFAULT_PREFS on next read.
+ */
+export async function resetSettings(): Promise<void> {
+    if (isTauri) {
+        await invoke('reset_settings');
+        return;
+    }
+    await clearPrefs();
+}
