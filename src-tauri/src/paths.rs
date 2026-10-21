@@ -228,9 +228,9 @@ pub fn default_media_folders() -> Vec<serde_json::Value> {
         let path_str = path.to_string_lossy().to_string();
         out.push(json!({
             "id": format!("default-{}", subdir.to_lowercase()),
-                       "label": label,
-                       "path": path_str,
-                       "itemCount": 0,
+            "label": label,
+            "path": path_str,
+            "itemCount": 0,
         }));
     }
     out

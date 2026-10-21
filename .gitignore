@@ -52,3 +52,6 @@ keystore.properties
 *.zip
 
 public/
+# Tauri sidecar binaries — fetched per-platform by scripts/prepare-sidecars.sh
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep

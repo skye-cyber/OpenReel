@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '../lib/Icons';
 import { usePlayer } from '../hooks/player';
 import { fmt } from '../lib/format';
 import { Dl, Row, Section } from './Media/subcmp';
 import { StreamCard } from './Media/Card';
-import { guessFrameRate, inferContainer } from '../helpers/media';
-import type { MediaProbe } from '../types/library';
+import type { MediaProbe } from '../types/media';
 import { librarymanager } from '../lib/platform/library';
+import { formatSize } from '../helpers/library';
+import { formatBitrate, formatFrameRate } from '../helpers/media';
 
 /* Cache probe results per file path so re-opening the panel is instant. */
 const probeCache = new Map<string, MediaProbe>();
@@ -43,6 +44,7 @@ export function MediaInfo() {
 
         void librarymanager.probeMediaFile(media.id)
             .then(p => {
+                console.log("Probe", p)
                 if (cancelled) return;
                 probeCache.set(media.id, p);
                 setProbe(p);
@@ -58,28 +60,10 @@ export function MediaInfo() {
         return () => { cancelled = true; };
     }, [mediaInfoOpen, media]);
 
-    /* Element-derived info: resolution, frame rate, current time. */
-    const element = useMemo(() => {
-        const v = document.querySelector<HTMLVideoElement>('video');
-        if (!v) return null;
-        return {
-            videoWidth: v.videoWidth,
-            videoHeight: v.videoHeight,
-            currentTime: v.currentTime,
-            duration: v.duration,
-        };
-    }, [mediaInfoOpen, media?.id]);
-
     if (!mediaInfoOpen || !media) return null;
 
-    const container = inferContainer(media);
-    const resolution =
-        element && element.videoWidth > 0 && element.videoHeight > 0
-            ? `${element.videoWidth}×${element.videoHeight}`
-            : '—';
-
     return (
-        <aside className="w-[360px] shrink-0 flex flex-col bg-surface border-l border-border animate-slide-in">
+        <aside className="w-[360px] shrink-0 flex flex-col bg-surface border-l border-border animate-slide-in py-1 px-2">
             {/* Header */}
             <div className="flex items-start gap-3 p-3.5 border-b border-border">
                 <div className="w-9 h-9 rounded-md bg-surface-2 border border-border flex items-center justify-center text-text-3 shrink-0">
@@ -105,46 +89,62 @@ export function MediaInfo() {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto">
-                {/* General */}
-                <Section title="General">
-                    <Dl>
-                        <Row label="Container" value={container} />
-                        <Row label="Duration" value={probe ? fmt(probe.duration || (media.dur || 0)) : fmt(media.dur || 0)} mono />
-                        <Row label="File path" value={media.id.replace(media.title, '')} mono small />
-                        {probe && probe.hasVideo && (
-                            <Row label="Resolution" value={resolution} mono />
-                        )}
-                    </Dl>
-                </Section>
+                {/*General section*/}
+                <Dl>
+                    <Row label="Container" value={(probe?.formatLongName || probe?.formatName) as string} />
+                    <Row label="Duration" value={fmt(probe?.duration as number)} mono />
+                    <Row label="Overall bitrate" value={formatBitrate(probe?.bitRate as number)} mono />
+                    <Row label="File size" value={formatSize(probe?.sizeBytes as number)} mono />
+                    <Row label="Streams" value={`${probe?.videoStreams.length} video · ${probe?.audioStreams.length} audio · ${probe?.subtitleStreams.length} subtitle`} />
+                </Dl>
 
-                {/* Video */}
-                {probe?.hasVideo && (
-                    <Section title="Video">
-                        <StreamCard
-                            kind="video"
-                            index={0}
-                            codec={probe.videoCodec || '—'}
-                            spec={resolution}
-                            extra={[
-                                { label: 'Frame rate', value: element?.videoWidth ? guessFrameRate(media) : '—' },
-                            ]}
-                        />
-                    </Section>
-                )}
+                {/*Video section — per stream*/}
+                {probe?.videoStreams.filter(v => !v.isAttachedPic).map(v => (
+                    <StreamCard key={v.index} kind="video" index={v.index} codec={v.codec}>
+                        <Row label="Codec" value={`${v.codec}${v.profile ? ` (${v.profile}${v.level ? `@L${v.level}` : ''})` : ''}`} />
+                        <Row label="Resolution" value={`${v.width}×${v.height}`} mono />
+                        <Row label="Aspect ratio" value={v.displayAspectRatio} mono />
+                        <Row label="Frame rate" value={formatFrameRate(v.frameRate)} mono />
+                        <Row label="Bitrate" value={formatBitrate(v.bitRate)} mono />
+                        <Row label="Pixel format" value={`${v.pixFmt}${v.bitDepth ? ` (${v.bitDepth}-bit)` : ''}`} mono />
+                        <Row label="Color" value={`${v.colorSpace || '—'} · ${v.colorTransfer || '—'}`} />
+                        {v.language && <Row label="Language" value={v.language} />}
+                        {v.title && <Row label="Title" value={v.title} />}
+                    </StreamCard>
+                ))}
 
-                {/* Audio */}
-                {probe?.hasAudio && (
-                    <Section title="Audio">
-                        <StreamCard
-                            kind="audio"
-                            index={probe.hasVideo ? 1 : 0}
-                            codec={probe.audioCodec || '—'}
-                            spec="—"
-                            extra={[
-                                { label: 'Channels', value: '—' },
-                                { label: 'Sample rate', value: '—' },
-                            ]}
-                        />
+                {/*Audio section — per stream*/}
+                {probe?.audioStreams.map(a => (
+                    <StreamCard key={a.index} kind="audio" index={a.index} codec={a.codec}>
+                        <Row label="Codec" value={`${a.codec}${a.profile ? ` (${a.profile})` : ''}`} />
+                        <Row label="Channels" value={`${a.channels}${a.channelLayout ? ` (${a.channelLayout})` : ''}`} mono />
+                        <Row label="Sample rate" value={`${a.sampleRate.toLocaleString()} Hz`} mono />
+                        {a.bitDepth && <Row label="Bit depth" value={`${a.bitDepth}-bit`} mono />}
+                        <Row label="Bitrate" value={formatBitrate(a.bitRate)} mono />
+                        {a.language && <Row label="Language" value={a.language.toUpperCase()} />}
+                        {a.title && <Row label="Title" value={a.title} />}
+                    </StreamCard>
+                ))}
+
+                {/*Subtitles section*/}
+                {probe?.subtitleStreams.map(s => (
+                    <StreamCard key={s.index} kind="subtitle" index={s.index} codec={s.codec}>
+                        <Row label="Codec" value={s.codec} />
+                        {s.language && <Row label="Language" value={s.language.toUpperCase()} />}
+                        {s.title && <Row label="Title" value={s.title} />}
+                        {s.isForced && <span className="chip-base">Forced</span>}
+                    </StreamCard>
+                ))}
+
+                {/*Chapters section (if any)*/}
+                {probe && probe.chapters.length > 0 && (
+                    <Section title={`Chapters · ${probe?.chapters.length}`}>
+                        {probe?.chapters.map(ch => (
+                            <div key={ch.id} className="flex items-center gap-2 py-1 text-[11.5px]">
+                                <span className="text-text-3 font-mono tabular-nums">{fmt(ch.startSeconds)}</span>
+                                <span className="truncate">{ch.title || `Chapter ${ch.id + 1}`}</span>
+                            </div>
+                        ))}
                     </Section>
                 )}
 

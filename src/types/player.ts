@@ -11,7 +11,7 @@ import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
 import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
 import type { SafeModeReason } from "../lib/platform/system/shared";
 import type { PersistedPrefs } from "./persists";
-import type { MediaProbe } from "./library";
+import type { MediaProbe } from "./media";
 
 
 export interface MediaInfoStream {
@@ -223,5 +223,5 @@ export interface PlayerState {
     clearQueue: () => void;
     queueMoveToTop: (index: number) => void;
     queueMoveNext: (index: number) => void;
-    openDroppedFiles: async (paths: string[]) => void;
+    openDroppedFiles: (paths: string[]) => Promise<void>;
 }

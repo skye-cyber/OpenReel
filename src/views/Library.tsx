@@ -150,7 +150,7 @@ export default function Library() {
                         key={c.id}
                         onClick={() => setFilter(c.id)}
                         className={`h-7 px-3 rounded-[20px] border text-[12px] transition-all
-                ${filter === c.id
+                        ${filter === c.id
                                 ? 'bg-accent-dim border-transparent text-accent font-semibold'
                                 : 'bg-surface border-border-2 text-text-2 hover:border-border-3 hover:text-text'}`}
                     >

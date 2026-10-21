@@ -6,3 +6,4 @@ pub mod shell;
 pub mod system;
 pub mod settings;
 pub mod audio;
+pub mod startup;

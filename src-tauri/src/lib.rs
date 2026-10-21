@@ -6,9 +6,10 @@ mod http_server;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use commands::startup::StartupFiles;
 
 // Cross-platform imports — used on desktop, Android, and iOS
-use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent, Emitter};
 
 // Desktop-only imports — tray, menu, and global shortcuts
 #[cfg(desktop)]
@@ -238,6 +239,7 @@ fn make_log_dir() -> PathBuf {
   .map(|h| h.join(".openreel").join("logs"))
   .unwrap_or_else(|| std::env::temp_dir().join(".openreel").join("logs"))
 }
+
 
 /*
  * Builds the Tauri app with plugins appropriate for the current platform.

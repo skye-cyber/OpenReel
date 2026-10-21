@@ -36,7 +36,7 @@ import type { PersistedPrefs } from '../types/persists';
 import { savePrefs } from './persistSettings';
 import type { Folder } from '../types';
 import { listen } from '@tauri-apps/api/event';
-import type { MediaProbe } from '../types/library';
+import type { MediaProbe } from '../types/media';
 import { computeNextIndex, computePrevIndex } from '../helpers/media';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);

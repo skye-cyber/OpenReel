@@ -7,6 +7,7 @@ import type {
     PlatformInfo,
     UpdateCheckResult
 } from "../../../types/platform";
+import type { AudioDevice } from "../../../types";
 
 
 class PlatformToolsImpl {

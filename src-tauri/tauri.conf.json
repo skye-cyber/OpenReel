@@ -46,14 +46,35 @@
   },
   "bundle": {
     "active": true,
+    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"],
     "linux": {
       "deb": {
-        "depends": ["libva-utils"]
+        "depends": ["vainfo"]
       },
       "rpm": {
-        "depends": ["libva-utils"]
+        "depends": ["vainfo"]
       }
     },
+    "fileAssociations": [
+        {
+          "ext": ["mkv", "mp4", "webm", "avi", "mov", "mp3", "flac", "wav", "m4a", "ogg", "opus"],
+          "mimeType": "video/mp4",
+          "role": "Viewer",
+          "rank": "Default"
+        },
+        {
+          "ext": ["mkv"],
+          "mimeType": "video/x-matroska",
+          "role": "Viewer",
+          "rank": "Default"
+        },
+        {
+          "ext": ["mp3"],
+          "mimeType": "audio/mpeg",
+          "role": "Viewer",
+          "rank": "Default"
+        }
+    ],
     "targets": "all",
     "icon": [
       "icons/32x32.png",

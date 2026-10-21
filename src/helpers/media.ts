@@ -1,7 +1,7 @@
 import type { Media } from "../types";
 import type { MediaInfo } from "../types/player";
 
-export const getMediaInfo = (m: Media): MediaInfo => {
+const _getMediaInfo = (m: Media): MediaInfo => {
     if (m.kind === 'error') {
         return {
             container: m.codec || '—',
@@ -121,36 +121,6 @@ export function displayLanguage(code: string | null): string | null {
     return LANG_NAMES[code.toLowerCase()] ?? code.toUpperCase();
 }
 
-export function inferContainer(media: Media): string {
-    const ext = media.id.split('.').pop()?.toLowerCase() ?? '';
-    const map: Record<string, string> = {
-        mkv: 'Matroska',
-        mp4: 'MPEG-4',
-        m4v: 'MPEG-4',
-        webm: 'WebM',
-        mov: 'QuickTime',
-        avi: 'AVI',
-        flv: 'Flash Video',
-        wmv: 'Windows Media',
-        ogv: 'Ogg',
-        mp3: 'MPEG Audio',
-        flac: 'FLAC',
-        wav: 'WAVE',
-        m4a: 'MPEG-4 Audio',
-        aac: 'AAC',
-        ogg: 'Ogg',
-        opus: 'Opus',
-        wma: 'Windows Media Audio',
-    };
-    return map[ext] ? ext.toUpperCase() : '—';
-}
-
-export function guessFrameRate(_media: Media): string {
-    // Can't read frame rate from the element without requestVideoFrameCallback.
-    // Return a placeholder.
-    return '—';
-}
-
 
 export function computeNextIndex(
     length: number,
@@ -197,4 +167,40 @@ export function computePrevIndex(
     const prev = current - 1;
     if (prev >= 0) return prev;
     return repeat === 'all' ? length - 1 : null;
+}
+
+/**
+ * Format a bitrate in bits per second as a human-readable string.
+ *
+ * 0 or negative returns "—" (ffprobe reports 0 when the codec doesn't
+ * expose a bitrate, e.g. some VBR audio streams and MKV containers
+ * without per-stream bitrate metadata).
+ */
+export function formatBitrate(bps: number): string {
+    if (!Number.isFinite(bps) || bps <= 0) return '—';
+    if (bps < 1_000) return `${Math.round(bps)} bps`;
+    if (bps < 1_000_000) return `${(bps / 1_000).toFixed(0)} kbps`;
+    if (bps < 1_000_000_000) {
+        const mbps = bps / 1_000_000;
+        return mbps < 10 ? `${mbps.toFixed(2)} Mbps` : `${mbps.toFixed(1)} Mbps`;
+    }
+    return `${(bps / 1_000_000_000).toFixed(2)} Gbps`;
+}
+
+/**
+ * Format a frame rate (frames per second) as a string.
+ *
+ * Rounds to three decimals so 23.976 stays distinct from 24 and
+ * 29.970 stays distinct from 30. Whole numbers get no decimals.
+ * ffprobe reports 0 when the stream has no frame rate (audio-only,
+ * still images), which maps to "—".
+ */
+export function formatFrameRate(fps: number): string {
+    if (!Number.isFinite(fps) || fps <= 0) return '—';
+    // Whole numbers: 24, 30, 60.
+    if (Math.abs(fps - Math.round(fps)) < 0.0005) {
+        return `${Math.round(fps)} fps`;
+    }
+    // Standard broadcast rates: keep three decimals.
+    return `${fps.toFixed(3)} fps`;
 }

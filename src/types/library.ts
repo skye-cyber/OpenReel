@@ -30,14 +30,6 @@ export interface LibraryMeta {
     scanId: string | null;
 }
 
-export interface MediaProbe {
-    duration: number,
-    hasVideo: boolean,
-    hasAudio: boolean,
-    videoCodec: string,
-    audioCodec: string,
-}
-
 export interface ScanResultSingle {
     /** Number of media files found in this folder. */
     itemsFound: number;

@@ -1,17 +1,17 @@
 import Icon from '../../lib/Icons';
-import { Row } from './subcmp';
-
 
 export function StreamCard({
-    kind, index, codec, spec, extra,
+    kind, index, codec, children,
 }: {
-    kind: 'video' | 'audio';
+    kind: 'video' | 'audio' | 'subtitle';
     index: number;
     codec: string;
-    spec: string;
-    extra?: Array<{ label: string; value: string }>;
+    children?: React.ReactNode;
 }) {
-    const kindIcon = kind === 'video' ? 'film' : 'music';
+    const kindIcon = kind === 'video' ? 'film'
+        : kind === 'audio' ? 'music'
+            : 'cc';
+
     return (
         <div className="p-2.5 rounded-md bg-surface-2 border border-border">
             <div className="flex items-center gap-2 mb-2">
@@ -20,11 +20,7 @@ export function StreamCard({
                 <div className="text-[11.5px] text-text-2 truncate flex-1 min-w-0">{codec}</div>
             </div>
             <div className="grid grid-cols-[92px_1fr] gap-x-2 gap-y-0.5 text-[11px]">
-                <span className="text-text-3">Spec</span>
-                <span className="font-mono tabular-nums">{spec}</span>
-                {extra?.map(e => (
-                    <Row key={e.label} label={e.label} value={e.value} />
-                ))}
+                {children}
             </div>
         </div>
     );

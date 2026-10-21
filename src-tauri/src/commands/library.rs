@@ -68,27 +68,94 @@ pub struct LibraryMeta {
     pub scan_id: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaProbe {
-    pub duration: f64,
+    // ---- Container / format ----
+    pub format_name: String,        // "matroska,webm", "mov,mp4,..."
+    pub format_long_name: String,   // "Matroska / WebM"
+    pub duration: f64,              // seconds
+    pub size_bytes: u64,
+    pub bit_rate: u64,              // container overall bitrate, bps
+    pub nb_streams: u32,
+
+    // ---- Aggregates (convenience for the UI) ----
     pub has_video: bool,
     pub has_audio: bool,
-    pub video_codec: String,
-    pub audio_codec: String,
+    pub has_subtitles: bool,
+
+    // ---- Streams ----
+    pub video_streams: Vec<VideoStream>,
+    pub audio_streams: Vec<AudioStream>,
+    pub subtitle_streams: Vec<SubtitleStream>,
+
+    // ---- Chapters ----
+    pub chapters: Vec<Chapter>,
+
+    // ---- Tags on the container (title, artist, album, etc.) ----
+    pub tags: HashMap<String, String>,
 }
 
-impl MediaProbe {
-    fn unknown() -> Self {
-        Self {
-            duration: 0.0,
-            has_video: false,
-            has_audio: false,
-            video_codec: String::new(),
-            audio_codec: String::new(),
-        }
-    }
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoStream {
+    pub index: u32,
+    pub codec: String,           // "h264", "hevc"
+    pub profile: String,         // "High", "Main 10"
+    pub level: i32,              // 41, 51
+    pub width: u32,
+    pub height: u32,
+    pub display_aspect_ratio: String,  // "16:9"
+    pub pix_fmt: String,         // "yuv420p", "yuv420p10le"
+    pub bit_depth: Option<u32>,  // derived from pix_fmt
+    pub frame_rate: f64,         // 23.976
+    pub avg_frame_rate: f64,
+    pub bit_rate: u64,
+    pub color_space: String,     // "bt709"
+    pub color_transfer: String,  // "bt709"
+    pub color_primaries: String, // "bt709"
+    pub language: Option<String>,
+    pub title: Option<String>,
+    pub is_default: bool,
+    pub is_attached_pic: bool,   // cover art, not a real video stream
 }
+
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioStream {
+    pub index: u32,
+    pub codec: String,           // "aac", "flac", "ac3"
+    pub profile: String,
+    pub sample_rate: u32,        // 48000
+    pub channels: u32,           // 6
+    pub channel_layout: String,  // "5.1(side)"
+    pub bit_rate: u64,
+    pub bit_depth: Option<u32>,
+    pub language: Option<String>,
+    pub title: Option<String>,
+    pub is_default: bool,
+}
+
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SubtitleStream {
+    pub index: u32,
+    pub codec: String,           // "subrip", "ass", "webvtt"
+    pub language: Option<String>,
+    pub title: Option<String>,
+    pub is_default: bool,
+    pub is_forced: bool,
+}
+
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Chapter {
+    pub id: u32,
+    pub start_seconds: f64,
+    pub end_seconds: f64,
+    pub title: String,
+}
+
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -266,70 +333,190 @@ pub async fn get_library_meta(
  *  ============================================================ */
 
 #[tauri::command]
-pub async fn probe_media_file(path: String) -> Result<MediaProbe, String> {
-    let output = std::process::Command::new("ffprobe")
+pub async fn probe_media_file(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<MediaProbe, String> {
+    use tauri::Manager;
+
+    let ffprobe_path = app
+    .path()
+    .resolve("ffprobe", tauri::path::BaseDirectory::Resource)
+    .map_err(|e| format!("resolve ffprobe: {e}"))?;
+
+    let output = std::process::Command::new(&ffprobe_path)
     .args([
         "-v", "error",
         "-print_format", "json",
         "-show_format",
         "-show_streams",
+        "-show_chapters",
         &path,
     ])
     .output();
 
     let Ok(output) = output else {
-        return Ok(MediaProbe::unknown());
+        log::warn!("ffprobe spawn failed for {path}");
+        return Ok(MediaProbe::default());
     };
 
     if !output.status.success() {
-        return Ok(MediaProbe::unknown());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        log::warn!("ffprobe failed for {path}: {stderr}");
+        return Ok(MediaProbe::default());
     }
 
     let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-    .map_err(|error| format!("parse ffprobe output: {error}"))?;
+    .map_err(|e| format!("parse ffprobe output: {e}"))?;
 
-    let duration = json
-    .get("format")
-    .and_then(|format| format.get("duration"))
-    .and_then(|duration| duration.as_str())
-    .and_then(|duration| duration.parse::<f64>().ok())
-    .unwrap_or(0.0);
+    Ok(parse_probe(json))
+}
 
-    let mut has_video = false;
-    let mut has_audio = false;
-    let mut video_codec = String::new();
-    let mut audio_codec = String::new();
+fn parse_probe(json: serde_json::Value) -> MediaProbe {
+    let mut probe = MediaProbe::default();
 
-    if let Some(streams) = json.get("streams").and_then(|streams| streams.as_array()) {
+    // ---------- Format ----------
+    if let Some(format) = json.get("format") {
+        probe.format_name = get_str(format, "format_name");
+        probe.format_long_name = get_str(format, "format_long_name");
+        probe.duration = get_f64(format, "duration");
+        probe.size_bytes = get_u64(format, "size");
+        probe.bit_rate = get_u64(format, "bit_rate");
+        probe.tags = parse_tags(format.get("tags"));
+
+        // Some formats (e.g. a raw AAC file) don't report nb_streams in
+        // format but it's derivable. Leave as 0 if absent.
+        probe.nb_streams = format
+        .get("nb_streams")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
+    }
+
+    // ---------- Streams ----------
+    if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
+        if probe.nb_streams == 0 {
+            probe.nb_streams = streams.len() as u32;
+        }
+
         for stream in streams {
-            match stream.get("codec_type").and_then(|value| value.as_str()) {
-                Some("video") if !has_video => {
-                    has_video = true;
-                    video_codec = stream.get("codec_name")
-                    .and_then(|codec| codec.as_str())
-                    .unwrap_or("")
-                    .to_string();
+            let codec_type = get_str(stream, "codec_type");
+            let disposition = stream.get("disposition");
+            let is_default = disposition
+            .and_then(|d| d.get("default"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) == 1;
+
+            match codec_type.as_str() {
+                "video" => {
+                    // Attached_pic is cover art — not a playable stream.
+                    let is_attached_pic = disposition
+                    .and_then(|d| d.get("attached_pic"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0) == 1;
+
+                    let pix_fmt = get_str(stream, "pix_fmt");
+                    let bit_depth = pix_fmt_to_bit_depth(&pix_fmt);
+
+                    probe.video_streams.push(VideoStream {
+                        index: stream.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                        codec: get_str(stream, "codec_name"),
+                        profile: get_str(stream, "profile"),
+                        level: stream.get("level").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+                        width: stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                        height: stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                        display_aspect_ratio: get_str(stream, "display_aspect_ratio"),
+                        pix_fmt,
+                        bit_depth,
+                        frame_rate: parse_rational(get_str(stream, "r_frame_rate")),
+                        avg_frame_rate: parse_rational(get_str(stream, "avg_frame_rate")),
+                        bit_rate: get_u64(stream, "bit_rate"),
+                        color_space: get_str(stream, "color_space"),
+                        color_transfer: get_str(stream, "color_transfer"),
+                        color_primaries: get_str(stream, "color_primaries"),
+                        language: get_opt_str(stream, "tags", "language"),
+                        title: get_opt_str(stream, "tags", "title"),
+                        is_default,
+                        is_attached_pic,
+                    });
                 }
-                Some("audio") if !has_audio => {
-                    has_audio = true;
-                    audio_codec = stream.get("codec_name")
-                    .and_then(|codec| codec.as_str())
-                    .unwrap_or("")
-                    .to_string();
+                "audio" => {
+                    let bits_per_raw_sample = stream
+                    .get("bits_per_raw_sample")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u32>().ok());
+
+                    probe.audio_streams.push(AudioStream {
+                        index: stream.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                        codec: get_str(stream, "codec_name"),
+                        profile: get_str(stream, "profile"),
+                        sample_rate: stream
+                        .get("sample_rate")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u32>().ok())
+                        .unwrap_or(0),
+                        channels: stream.get("channels").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                        channel_layout: get_str(stream, "channel_layout"),
+                        bit_rate: get_u64(stream, "bit_rate"),
+                        bit_depth: bits_per_raw_sample,
+                        language: get_opt_str(stream, "tags", "language"),
+                        title: get_opt_str(stream, "tags", "title"),
+                        is_default,
+                    });
                 }
-                _ => {}
+                "subtitle" => {
+                    let is_forced = disposition
+                    .and_then(|d| d.get("forced"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0) == 1;
+
+                    probe.subtitle_streams.push(SubtitleStream {
+                        index: stream.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                        codec: get_str(stream, "codec_name"),
+                        language: get_opt_str(stream, "tags", "language"),
+                        title: get_opt_str(stream, "tags", "title"),
+                        is_default,
+                        is_forced,
+                    });
+                }
+                _ => {
+                    // Data streams, attachment streams — ignore.
+                }
             }
         }
     }
 
-    Ok(MediaProbe {
-        duration,
-       has_video,
-       has_audio,
-       video_codec,
-       audio_codec,
-    })
+    // ---------- Chapters ----------
+    if let Some(chapters) = json.get("chapters").and_then(|c| c.as_array()) {
+        for (i, chapter) in chapters.iter().enumerate() {
+            probe.chapters.push(Chapter {
+                id: chapter
+                .get("id")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(i as u64) as u32,
+                start_seconds: chapter
+                .get("start_time")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(0.0),
+                end_seconds: chapter
+                .get("end_time")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(0.0),
+                title: get_opt_str(chapter, "tags", "title").unwrap_or_default(),
+            });
+        }
+    }
+
+    // ---------- Derive aggregates ----------
+    // `has_video` excludes attached_pic streams (cover art on audio files).
+    probe.has_video = probe.video_streams.iter().any(|v| !v.is_attached_pic);
+    probe.has_audio = !probe.audio_streams.is_empty();
+    probe.has_subtitles = !probe.subtitle_streams.is_empty();
+
+    probe
 }
+
 
 /* ============================================================
  *  Startup scan
@@ -503,6 +690,75 @@ pub async fn unwatch_folder(
 /* ============================================================
  *  Helpers
  *  ============================================================ */
+
+fn get_str(v: &serde_json::Value, key: &str) -> String {
+    v.get(key).and_then(|x| x.as_str()).unwrap_or("").to_string()
+}
+
+fn get_opt_str(v: &serde_json::Value, group: &str, key: &str) -> Option<String> {
+    v.get(group)
+    .and_then(|g| g.get(key))
+    .and_then(|x| x.as_str())
+    .filter(|s| !s.is_empty())
+    .map(|s| s.to_string())
+}
+
+fn get_f64(v: &serde_json::Value, key: &str) -> f64 {
+    v.get(key)
+    .and_then(|x| x.as_str())
+    .and_then(|s| s.parse::<f64>().ok())
+    .or_else(|| v.get(key).and_then(|x| x.as_f64()))
+    .unwrap_or(0.0)
+}
+
+fn get_u64(v: &serde_json::Value, key: &str) -> u64 {
+    v.get(key)
+    .and_then(|x| x.as_str())
+    .and_then(|s| s.parse::<u64>().ok())
+    .or_else(|| v.get(key).and_then(|x| x.as_u64()))
+    .unwrap_or(0)
+}
+
+fn parse_tags(v: Option<&serde_json::Value>) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    if let Some(tags) = v.and_then(|t| t.as_object()) {
+        for (k, val) in tags {
+            if let Some(s) = val.as_str() {
+                out.insert(k.to_lowercase(), s.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// ffprobe reports frame rate as a rational string like "24000/1001".
+fn parse_rational(s: String) -> f64 {
+    if s.is_empty() || s == "0/0" {
+        return 0.0;
+    }
+    if let Some((num, den)) = s.split_once('/') {
+        let n = num.parse::<f64>().unwrap_or(0.0);
+        let d = den.parse::<f64>().unwrap_or(0.0);
+        if d > 0.0 { n / d } else { 0.0 }
+    } else {
+        s.parse::<f64>().unwrap_or(0.0)
+    }
+}
+
+/// Derive bit depth from ffprobe's pix_fmt string.
+fn pix_fmt_to_bit_depth(pix_fmt: &str) -> Option<u32> {
+    if pix_fmt.contains("10le") || pix_fmt.contains("10be") {
+        Some(10)
+    } else if pix_fmt.contains("12le") || pix_fmt.contains("12be") {
+        Some(12)
+    } else if pix_fmt.contains("9le") || pix_fmt.contains("9be") {
+        Some(9)
+    } else if pix_fmt.is_empty() {
+        None
+    } else {
+        Some(8)
+    }
+}
 
 fn now_ms() -> u64 {
     SystemTime::now()

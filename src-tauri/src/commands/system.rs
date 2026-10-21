@@ -1,4 +1,6 @@
 use serde::Serialize;
+use std::io::{Read, Seek, SeekFrom};
+use tauri::Manager;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +24,24 @@ pub struct PlatformInfo {
     pub audio_backend: String,
     pub display_scaling: f64,
 }
+
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogLine {
+    pub timestamp: String,
+    pub level: String,
+    pub message: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogTail {
+    pub lines: Vec<LogLine>,
+    pub path: String,
+    pub error: Option<String>,
+}
+
 
 #[tauri::command]
 pub async fn probe_hardware_decoding() -> Result<HardwareProbe, String> {
@@ -170,50 +190,15 @@ fn detect_gpu_internal() -> String {
     String::new()
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LogLine {
-    pub timestamp: String,
-    pub level: String,
-    pub message: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LogTail {
-    pub lines: Vec<LogLine>,
-    pub path: String,
-    pub error: Option<String>,
-}
-
 #[tauri::command]
 pub async fn read_log_tail(
     app: tauri::AppHandle,
     lines: Option<usize>,
 ) -> Result<LogTail, String> {
-    use std::io::{BufRead, BufReader};
-    use tauri::Manager;
-
     let max_lines = lines.unwrap_or(200).min(1000);
 
-    let log_dir = app
-    .path()
-    .app_log_dir()
-    .map_err(|e| format!("log dir: {e}"))?;
-
-    // tauri-plugin-log writes to <app_log_dir>/openreel.log by default
-    // when file_name is "openreel". Some versions append a .log.
-    let log_path = {
-        let candidates = [
-            log_dir.join("openreel.log"),
-            log_dir.join("openreel"),
-        ];
-        candidates
-        .iter()
-        .find(|p| p.exists())
-        .cloned()
-        .unwrap_or_else(|| log_dir.join("openreel.log"))
-    };
+    // Get log file from path.rs
+    let log_path = crate::paths::log_file(&app);
 
     if !log_path.exists() {
         return Ok(LogTail {
@@ -223,28 +208,97 @@ pub async fn read_log_tail(
         });
     }
 
-    let file = std::fs::File::open(&log_path)
-    .map_err(|e| format!("open log: {e}"))?;
+    // Open the file and read the last N lines efficiently by seeking
+    // from the end. Only the tail is loaded into memory.
+    let raw_tail = match read_last_lines(&log_path, max_lines) {
+        Ok(lines) => lines,
+        Err(e) => {
+            return Ok(LogTail {
+                lines: Vec::new(),
+                      path: log_path.to_string_lossy().to_string(),
+                      error: Some(format!("read log: {e}")),
+            });
+        }
+    };
 
-    // Read all lines, keep the last N.
-    // For very large logs this is wasteful — good enough for a demo.
-    let reader = BufReader::new(file);
-    let all: Vec<String> = reader
-    .lines()
-    .filter_map(|l| l.ok())
-    .collect();
-
-    let start = all.len().saturating_sub(max_lines);
-    let tail: Vec<LogLine> = all[start..]
+    let parsed: Vec<LogLine> = raw_tail
     .iter()
     .filter_map(|raw| parse_log_line(raw))
     .collect();
 
     Ok(LogTail {
-        lines: tail,
+        lines: parsed,
        path: log_path.to_string_lossy().to_string(),
        error: None,
     })
+}
+
+/// Read the last `count` lines of a file by seeking from the end.
+///
+/// Returns them in chronological order (oldest first). If the file has
+/// fewer than `count` lines, returns the whole file.
+///
+/// The approach: seek to the end, read backward in chunks until enough
+/// newlines are found, then split and trim. Only the tail bytes are
+/// held in memory — the rest of the file never leaves disk.
+fn read_last_lines(path: &std::path::Path, count: usize) -> std::io::Result<Vec<String>> {
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut file = std::fs::File::open(path)?;
+    let file_len = file.metadata()?.len();
+    if file_len == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Chunk size for backward scan. 8 KB is enough for ~50-100 log
+    // lines typically, so 200 lines takes 2-3 reads for a modern log
+    // format. Increase if your format is more verbose per line.
+    const CHUNK: u64 = 8192;
+
+    let mut collected: Vec<u8> = Vec::new();
+    let mut pos = file_len;
+    let mut newlines_found = 0usize;
+
+    // Scan backward until we've found `count + 1` newlines or hit the
+    // start of the file. The +1 accounts for the newline at the very
+    // end of the file (if present) which doesn't terminate a real line.
+    while pos > 0 && newlines_found < count + 1 {
+        let read_size = CHUNK.min(pos);
+        pos -= read_size;
+
+        file.seek(SeekFrom::Start(pos))?;
+        let mut buf = vec![0u8; read_size as usize];
+        file.read_exact(&mut buf)?;
+
+        // Prepend to collected.
+        let mut new_collected = Vec::with_capacity(buf.len() + collected.len());
+        new_collected.extend_from_slice(&buf);
+        new_collected.extend_from_slice(&collected);
+        collected = new_collected;
+
+        newlines_found = collected.iter().filter(|&&b| b == b'\n').count();
+    }
+
+    let text = String::from_utf8_lossy(&collected);
+
+    // Split into lines, drop the trailing empty entry if the file
+    // ends with a newline, take the last `count` lines, and reverse
+    // to chronological order.
+    let mut all: Vec<&str> = text.split('\n').collect();
+    if all.last() == Some(&"") {
+        all.pop();
+    }
+
+    let start = all.len().saturating_sub(count);
+    let tail: Vec<String> = all[start..]
+    .iter()
+    .filter(|line| !line.trim().is_empty())
+    .map(|s| s.to_string())
+    .collect();
+
+    Ok(tail)
 }
 
 fn parse_log_line(raw: &str) -> Option<LogLine> {

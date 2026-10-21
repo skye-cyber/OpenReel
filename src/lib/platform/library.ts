@@ -3,11 +3,10 @@ import { isTauri } from './system/shared';
 import type {
     LibraryFile,
     LibraryMeta,
-    MediaProbe,
     ScanResultSingle,
 } from '../../types/library';
 import type { Folder, ScanProgress } from '../../types';
-
+import type { MediaProbe } from '../../types/media';
 
 /**
  * Default folders for first launch. Empty until the user adds one
@@ -83,9 +82,6 @@ class LibraryImpl {
      * Returns a zero-valued probe if ffprobe isn't installed.
      */
     async probeMediaFile(path: string): Promise<MediaProbe> {
-        if (!isTauri) {
-            return { duration: 0, hasVideo: false, hasAudio: false, videoCodec: '', audioCodec: '' };
-        }
         return invoke<MediaProbe>('probe_media_file', { path });
     }
 

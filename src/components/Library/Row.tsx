@@ -2,8 +2,10 @@ import Icon from "../../lib/Icons";
 import { formatDuration } from "../../helpers/media";
 import { useEffect, useState } from "react";
 import { isTauri } from "../../lib/platform/system/shared";
-import type { MediaProbe, Row } from "../../types/library";
+import type { Row } from "../../types/library";
 import { librarymanager } from "../../lib/platform/library";
+import type { MediaProbe } from "../../types/media";
+
 
 export function Row({
     row, index, isSelected, onSelect, onPlay, onContextMenu, onNavigate,
