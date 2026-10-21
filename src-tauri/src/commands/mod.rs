@@ -7,3 +7,4 @@ pub mod system;
 pub mod settings;
 pub mod audio;
 pub mod startup;
+pub mod transcode;

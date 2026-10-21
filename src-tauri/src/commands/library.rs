@@ -341,7 +341,7 @@ pub async fn probe_media_file(
 
     let ffprobe_path = app
     .path()
-    .resolve("ffprobe", tauri::path::BaseDirectory::Resource)
+    .resolve("openreel-ffprobe", tauri::path::BaseDirectory::Resource)
     .map_err(|e| format!("resolve ffprobe: {e}"))?;
 
     let output = std::process::Command::new(&ffprobe_path)

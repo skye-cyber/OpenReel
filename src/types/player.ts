@@ -12,6 +12,7 @@ import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
 import type { SafeModeReason } from "../lib/platform/system/shared";
 import type { PersistedPrefs } from "./persists";
 import type { MediaProbe } from "./media";
+import type { RefObject } from "react";
 
 
 export interface MediaInfoStream {
@@ -38,6 +39,16 @@ export interface MediaInfo {
     overallBitrate?: string;
     fileSize?: string;
     streams: MediaInfoStream[];
+}
+
+export interface Transcode {
+    mediaId: string;
+    percent: number;
+    speed: number;
+    processedSeconds: number;
+    totalSeconds: number;
+    status: 'running' | 'done' | 'error';
+    error: string | null;
 }
 
 export interface PlayerState {
@@ -224,4 +235,7 @@ export interface PlayerState {
     queueMoveToTop: (index: number) => void;
     queueMoveNext: (index: number) => void;
     openDroppedFiles: (paths: string[]) => Promise<void>;
+    transcode: Transcode;
+    setTranscode: (d: Transcode | null) => void;
+    mediaRef: RefObject<Element>
 }

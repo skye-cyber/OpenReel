@@ -44,7 +44,6 @@ export function MediaInfo() {
 
         void librarymanager.probeMediaFile(media.id)
             .then(p => {
-                console.log("Probe", p)
                 if (cancelled) return;
                 probeCache.set(media.id, p);
                 setProbe(p);

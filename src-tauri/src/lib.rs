@@ -3,10 +3,11 @@ mod paths;
 mod stream_protocol;
 mod http_server;
 // pub mod state;
+use commands::startup::StartupFiles;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use commands::startup::StartupFiles;
+
 
 // Cross-platform imports — used on desktop, Android, and iOS
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent, Emitter};
@@ -338,6 +339,7 @@ pub fn run() {
   .manage(commands::startup::StartupFiles {
     paths: std::sync::Mutex::new(Vec::new()),
   })
+  .manage(commands::transcode::TranscodeManager::new())
   .invoke_handler(tauri::generate_handler![
     get_app_version,
     get_dev_status,
@@ -374,6 +376,8 @@ pub fn run() {
     commands::audio::set_audio_device,
     commands::audio::get_audio_device,
     commands::startup::get_startup_files,
+    commands::transcode::prepare_transcode,
+    commands::transcode::cancel_transcode,
   ])
     .setup(|app| {
       let handle = app.handle().clone();

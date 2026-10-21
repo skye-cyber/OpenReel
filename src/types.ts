@@ -55,6 +55,7 @@ export interface ErrorMedia {
     detail?: string;
     pluginName?: string;
     codec: string;
+    url?: string
 }
 
 export type ErrorReason =

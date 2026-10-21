@@ -95,6 +95,14 @@ pub fn logs_dir(app: &AppHandle) -> PathBuf {
     base_dir(app).join("logs")
 }
 
+/// Directory where transcoded MP4 files are cached.
+///
+/// Files here are keyed by a hash of (source path, mtime, size). Old
+/// entries are cleaned up on startup by a size-based sweep.
+pub fn transcode_cache_dir(app: &AppHandle) -> PathBuf {
+    base_dir(app).join("transcode")
+}
+
 // ---- Specific files -----------------------------------------------------
 //
 // These are the actual files the app writes. Using named helpers rather
@@ -140,7 +148,7 @@ pub fn log_file(app: &AppHandle) -> PathBuf {
 pub fn ensure_data_dirs(app: &AppHandle) -> std::io::Result<PathBuf> {
     let base = base_dir(app);
     std::fs::create_dir_all(&base)?;
-    for sub in ["config", "state", "library", "plugins", "logs"] {
+    for sub in ["config", "state", "library", "plugins", "logs", "transcode"] {
         std::fs::create_dir_all(base.join(sub))?;
     }
     Ok(base)

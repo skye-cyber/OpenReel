@@ -21,7 +21,7 @@ import {
     type Settings,
 } from '../types/settings';
 import { Session } from '../lib/platform/session';
-import type { PlayerState } from '../types/player';
+import type { PlayerState, Transcode as TranscodeType } from '../types/player';
 import { mediaFromPath } from '../helpers/herpers';
 import {
     DEFAULT_FOLDERS,
@@ -37,7 +37,10 @@ import { savePrefs } from './persistSettings';
 import type { Folder } from '../types';
 import { listen } from '@tauri-apps/api/event';
 import type { MediaProbe } from '../types/media';
-import { computeNextIndex, computePrevIndex } from '../helpers/media';
+import { computeNextIndex, computePrevIndex, needsTranscode } from '../helpers/media';
+import { prepareTranscode } from '../lib/platform/transcode';
+import { toMediaUrl } from '../lib/mediaPath';
+import { invoke } from '@tauri-apps/api/core';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
 
@@ -54,6 +57,10 @@ interface PlayerProviderProps {
     initialSafeModeReason: SafeModeReason | null;
 }
 
+/**
+ * **PlayerProvider**\
+ T h*e if (transcode && transcode.status !== 'done') gate also prevents playback during a second transcode if the user has multiple HEVC files queued and presses Next. nextItem sets queueIndex to the next item, playMedia runs for that item, needsTranscode returns true, setTranscode starts a new transcode. The effect sees transcode.status === 'running', skips. When the second transcode completes, effect fires. Correct.
+ */
 export function PlayerProvider({
     children,
     initialPrefs: prefs,
@@ -76,6 +83,8 @@ export function PlayerProvider({
          */
         const [subTrack, setSubTrack] = useState(-1);
         const [queue, setQueue] = useState<QueueItem[]>([]);
+        const queueRef = useRef<QueueItem[]>(queue);
+        queueRef.current = queue;
         // queueIndex = -1 means nothing is playing from the queue
         const [queueIndex, setQueueIndex] = useState<number>(-1);
         const [shuffle, setShuffle] = useState(false);
@@ -112,7 +121,8 @@ export function PlayerProvider({
             initialSafeModeReason
         );
         const _mediaInfoCache = useRef<Map<string, MediaProbe>>(new Map());
-
+        const [transcode, setTranscode] = useState<TranscodeType | null>(null);
+        const transcodeInFlightRef = useRef<Set<string>>(new Set());
         const [libraryIndexReady, setLibraryIndexReady] = useState<boolean>(false)
         const pendingSeekRef = useRef<number | null>(null);
         const pendingPlayRef = useRef<boolean>(false);
@@ -212,9 +222,19 @@ export function PlayerProvider({
 
         const setMedia = useCallback((m: Media | null) => {
             setScene('empty');
+            const prev = mediaRef.current;
             _setMedia(m);
-            // If clearing media, discard any pending playback intent.
             if (m === null) {
+                setTranscode(null);
+                setQueueIndex(-1);  // ← clear the index
+                _setPlaying(false);  // ← stop playback
+                setPos(0);
+                setBuffered(0);
+                setTranscode(null);
+                // Cancel any in-flight transcode for the outgoing media.
+                if (prev && prev.id && transcodeInFlightRef.current.has(prev.id)) {
+                    void invoke('cancel_transcode', { path: prev.id }).catch(() => { });
+                }
                 pendingSeekRef.current = null;
                 pendingPlayRef.current = false;
             }
@@ -225,15 +245,6 @@ export function PlayerProvider({
                 setMedia({ ...media, dur: seconds });
             }
         }, [media, setMedia]);
-
-        // syncs media when queueIndex changes
-        useEffect(() => {
-            if (queueIndex < 0 || queueIndex >= queue.length) return;
-            const item = queue[queueIndex];
-            if (item && item.media.id !== media?.id) {
-                playMediaInternal(item.media, 'queue');
-            }
-        }, [queueIndex, queue]);
 
         useEffect(() => {
             if (libraryMeta.lastScanAt !== null) return;
@@ -474,6 +485,7 @@ export function PlayerProvider({
                 setSubTrack(-1);
                 setAudioTrack(0);
                 setBuffering(false)
+                setQueueIndex(-1);
             }
 
             _setView(v);
@@ -566,7 +578,7 @@ export function PlayerProvider({
         durRef.current = dur;
         mediaRef.current = media;
 
-        const playMediaInternal = useCallback((m: Media, source: 'queue' | 'direct') => {
+        const playMediaInternal = useCallback((m: Media, _source: 'queue' | 'direct') => {
             // Save outgoing item's position before we replace it.
             const oldMedia = mediaRef.current;
             const oldPos = posRef.current;
@@ -608,37 +620,61 @@ export function PlayerProvider({
         }, [setMedia, setView, settings.resumeEnabled, settings.resumeThreshold, toast]);
 
         const playMedia = useCallback((m: Media) => {
-            const existingIdx = queue.findIndex(q => q.id === m.id);
+            const currentQueue = queueRef.current;
+            const existingIdx = currentQueue.findIndex(q => q.id === m.id);
+
+            let itemIndex: number;
             if (existingIdx >= 0) {
-                setQueueIndex(existingIdx);
-                return;
+                itemIndex = existingIdx;
+            } else {
+                const item: QueueItem = { id: m.id, media: m, addedAt: Date.now() };
+                setQueue(prev => [...prev, item]);
+                itemIndex = currentQueue.length;
             }
 
-            const item: QueueItem = { id: m.id, media: m, addedAt: Date.now() };
-            setQueue(prev => [...prev, item]);
-            setQueueIndex(queue.length);
-        }, [queue]);
+            setQueueIndex(itemIndex);
+            playMediaInternal(m, 'direct');
 
-        /**
-         * Avoid cases where if playMedia is called twice in the same tick with different media, the second call's queue.length is still the pre-update value. The second item gets newIndex equal to the first item's index. Both point to the same slot.
-         */
-        const playMediaEdge = useCallback((m: Media) => {
-            const existingIdx = queue.findIndex(q => q.id === m.id);
-            if (existingIdx >= 0) {
-                setQueueIndex(existingIdx);
-                return;
+            if (isTauri && needsTranscode(m)) {
+                if (!transcodeInFlightRef.current.has(m.id)) {
+                    transcodeInFlightRef.current.add(m.id);
+                    // No setQueueIndex(0). No itemIndex passed — swap by ID.
+                    void runTranscode(m);
+                }
             }
+        }, [playMediaInternal]);
 
-            const item: QueueItem = { id: m.id, media: m, addedAt: Date.now() };
-            setQueue(prev => {
-                const next = [...prev, item];
-                // Compute the index for this specific update.
-                const idx = next.length - 1;
-                // Schedule the index change as a follow-up.
-                Promise.resolve().then(() => setQueueIndex(idx));
-                return next;
+        // Swap by q.id === m.id. No itemIndex. Every transcode completion targets the correct queue item regardless of position.
+        const runTranscode = useCallback(async (m: Media) => {
+            setTranscode({
+                mediaId: m.id,
+                percent: 0, speed: 0, processedSeconds: 0, totalSeconds: 0,
+                status: 'running', error: null,
             });
-        }, [queue]);
+
+            try {
+                const result = await prepareTranscode(m.id, (p) => {
+                    setTranscode(prev => prev && prev.mediaId === m.id ? { ...prev, ...p } : prev);
+                });
+                const outputUrl = await toMediaUrl(result.outputPath);
+
+                setQueue(prev => prev.map(q =>
+                    q.id === m.id
+                        ? { ...q, media: { ...q.media, url: outputUrl, dur: result.duration } }
+                        : q
+                ));
+
+                setTranscode(prev => prev && prev.mediaId === m.id
+                    ? { ...prev, status: 'done', percent: 1.0 }
+                    : prev);
+            } catch (err) {
+                setTranscode(prev => prev && prev.mediaId === m.id
+                    ? { ...prev, status: 'error', error: String(err) }
+                    : prev);
+            } finally {
+                transcodeInFlightRef.current.delete(m.id);
+            }
+        }, []);
 
         const appendAndPlay = useCallback((media: Media[]) => {
             if (media.length === 0) return;
@@ -715,6 +751,22 @@ export function PlayerProvider({
             toast(`Snapshot saved at ${t} — JPEG 1920×1080`);
         }, [hasMedia, pos, dur, toast]);
 
+        // syncs media when queueIndex changes
+        useEffect(() => {
+            if (queueIndex < 0 || queueIndex >= queue.length) return;
+            if (media === null) return;  // ← no media means nothing to play
+            console.log(media)
+            const item = queue[queueIndex];
+            if (!item) return;
+
+            // Compare URLs, not just IDs. The ID stays the source path across
+            // the transcode swap; only the URL changes. Comparing only IDs means
+            // the effect never re-fires after the swap, `media` keeps the
+            // source URL, and the `<video>` element never gets the transcode.
+            if (item.media.id !== media?.id || item.media.url !== media?.url) {
+                playMediaInternal(item.media, 'queue');
+            }
+        }, [queueIndex, queue, media?.id, media?.url, playMediaInternal]);
 
         // Handle library scanning when indexes get updated
         useEffect(() => {
@@ -765,18 +817,18 @@ export function PlayerProvider({
         const playQueueItem = useCallback((i: number) => {
             const item = queue[i];
             if (!item) return;
-
-            // Unplayable items are skipped visually but calling Play on one
-            // is a no-op with a toast.
             if (item.media.kind === 'error') {
                 toast(`Can't play "${item.media.title}"`, 'err');
                 return;
             }
-
             setQueueIndex(i);
-            // The queueIndex effect fires playMediaInternal(item.media).
-            // No need to call playMedia here — that would re-append to the queue.
-        }, [queue, toast]);
+            playMediaInternal(item.media, 'queue');
+
+            if (isTauri && needsTranscode(item.media) && !transcodeInFlightRef.current.has(item.media.id)) {
+                transcodeInFlightRef.current.add(item.media.id);
+                void runTranscode(item.media);
+            }
+        }, [queue, toast, playMediaInternal]);
 
         const nextItem = useCallback(() => {
             if (queue.length === 0) return;
@@ -1325,6 +1377,7 @@ export function PlayerProvider({
         const syncPlayingFromElement = _setPlaying;
         const watchAvailable = useMemo(() => librarymanager.isWatchAvailable(), []);
         const mediaInfoCache = _mediaInfoCache.current
+        // const  transcode = _transcode as TranscodeType
         /* --------------------------------------------------------
          *    Memoized context value
          *    -------------------------------------------------------- */
@@ -1398,7 +1451,10 @@ export function PlayerProvider({
             // File opening
             openFiles,
             // Queue ops
-            repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem, clearQueue, queueMoveNext, queueMoveToTop, openDroppedFiles,
+            repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem,
+            clearQueue, queueMoveNext, queueMoveToTop, openDroppedFiles,
+            // MKV handling
+            transcode, setTranscode, mediaRef,
         }), [
             // ---- Must mirror the value object field-for-field ----
             theme, themePref, systemDark,
@@ -1453,7 +1509,9 @@ export function PlayerProvider({
             // File opening
             openFiles,
             // QUEUE ops
-            repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem, clearQueue, queueMoveToTop, queueMoveNext, openDroppedFiles
+            repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem, clearQueue, queueMoveToTop, queueMoveNext, openDroppedFiles,
+            // MKV handling
+            transcode, setTranscode, mediaRef
         ]);
 
         return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

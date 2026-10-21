@@ -9,20 +9,33 @@ import type { ContextMenuEntry, ContextMenuItem } from '../types/contextmenu';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { SubtitleOverlay } from '../components/SubtitleOverlay';
 import { CloseMediaButton } from '../components/mediaButton';
+import { fmt } from '../lib/format';
 
+/**
+ * **VideoStage**\
+ * *pointer-events-none* means the transport underneath stays clickable. If the user clicks Next during a p.transcode, nextItem fires, playMedia runs for the next item. If that item also needs transcoding, setTranscode replaces the current p.transcode state with the new media's. The old p.transcode keeps running in the Rust background — its result lands in the cache. When the user navigates back to the first file, prepareTranscode returns cached: true instantly. No re-p.transcode. Correct behavior
+ * */
 export function VideoStage({ media }: { media: VideoMedia }) {
     const [visible, setVisible] = useState(true);
     const p = usePlayer();
 
     const { state: ctxMenu, open: openCtx, close: closeCtx } = useContextMenu<undefined>();
     const localRef = useRef<HTMLVideoElement | null>(null);
-
+    //     const [playableUrl, setPlayableUrl] = useState<string | undefined>()
     /* Register the element with the context on mount. */
     const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
         localRef.current = el;
         p.registerVideoElement(el);
     }, [p.registerVideoElement]);
 
+    const transcodeForThis = p.transcode?.mediaId === media.id ? p.transcode : null;
+
+    let playableUrl =
+        transcodeForThis?.status === 'running' ? undefined
+            : transcodeForThis?.status === 'error' ? undefined
+                : media.url || undefined;
+
+    //     console.log("Media B", playableUrl)
     useEffect(() => {
         const v = localRef.current;
         if (!v) return;
@@ -68,9 +81,10 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             }
         };
         const onEnded = () => {
+            if (p.mediaRef && p.mediaRef.current?.id !== media.id) return;  // stale element, media changed
             p.syncPlayingFromElement(false);
             if (p.settings.autoplayNext) {
-                p.nextItem();
+                requestAnimationFrame(() => p.nextItem());
             } else {
                 p.setPos(0);
                 v.currentTime = 0;
@@ -193,6 +207,9 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         p.settings.defaultAspect === 'fill' ? 'object-cover'
             : p.settings.defaultAspect === 'stretch' ? 'object-fill'
                 : 'object-contain';
+    //     playableUrl = media.url || undefined;
+    console.log("[-]Media A", playableUrl)
+
     return (
         <div className="p-0.5 flex flex-col gap-3.5 h-full min-h-0">
             <div
@@ -201,9 +218,50 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                 className="flex-1 min-h-0 rounded-lg relative overflow-hidden bg-video border-0 border-border shadow-[0_20px_50px_rgba(0,0,0,.45)] flex flex-col [&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:p-0 select-none"
             >
                 <div className="flex-1 relative">
+                    {transcodeForThis && transcodeForThis.status !== 'done' && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-video z-20 pointer-events-none">
+                            {transcodeForThis.status === 'running' && (
+                                <>
+                                    <div className="w-14 h-14 rounded-full border-2 border-border-2 border-t-accent animate-spin-standard" />
+                                    <div className="text-[13px] font-semibold text-[#e9ebee]">Preparing video…</div>
+                                    <div className="w-[220px]">
+                                        <div className="h-1 rounded-full bg-[rgba(255,255,255,.1)] overflow-hidden">
+                                            <div
+                                                className="h-full bg-accent transition-[width] duration-200"
+                                                style={{ width: `${Math.round(p.transcode.percent * 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="text-[11px] text-[rgba(233,235,238,.55)] tabular-nums">
+                                        {Math.round(p.transcode.percent * 100)}%
+                                        {p.transcode.speed > 0 && ` · ${p.transcode.speed.toFixed(1)}×`}
+                                        {p.transcode.totalSeconds > 0 && ` · ${fmt(p.transcode.processedSeconds)} / ${fmt(p.transcode.totalSeconds)}`}
+                                    </div>
+                                    <div className="text-[10.5px] text-[rgba(233,235,238,.4)] max-w-[36ch] text-center leading-relaxed">
+                                        Converting this file to a format the player can display.
+                                        Playback starts automatically when ready.
+                                    </div>
+                                </>
+                            )}
+
+                            {p.transcode.status === 'error' && (
+                                <>
+                                    <Icon name="alert" size={26} className="text-danger" />
+                                    <div className="text-[13px] font-semibold text-[#e9ebee]">Couldn't prepare this file</div>
+                                    <div className="text-[11.5px] text-[rgba(233,235,238,.55)] max-w-[46ch] text-center">
+                                        {p.transcode.error ?? 'The conversion failed.'}
+                                    </div>
+                                    <Button size="sm" variant="primary" onClick={() => p.setTranscode(null)}>
+                                        Dismiss
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
                     <video
+                        key={`${media.id}:${media.url ?? ''}`}
                         ref={setVideoRef}
-                        src={media.url || undefined}
+                        src={playableUrl || undefined}
                         className={`absolute inset-0 w-full h-full ${objectFit} bg-black`}
                         playsInline
                         preload="metadata"

@@ -204,3 +204,16 @@ export function formatFrameRate(fps: number): string {
     // Standard broadcast rates: keep three decimals.
     return `${fps.toFixed(3)} fps`;
 }
+
+export function needsTranscode(m: Media): boolean {
+    if (m.kind === 'error') return false;
+    const ext = m.id.split('.').pop()?.toLowerCase() ?? '';
+    // MKV is not playable in WebKitGTK regardless of codec. Transcode.
+    if (ext === 'mkv') return true;
+    // Other HEVC-in-MP4 sources might play on Windows but fail on Linux.
+    // The extension alone can't tell; the probe does, but probing adds
+    // latency. For files with a `.mkv` extension we always transcode.
+    // For `.mp4`/`.webm`/etc., play as-is and let the error stage handle
+    // codec failures.
+    return false;
+}

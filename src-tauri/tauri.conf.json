@@ -46,7 +46,7 @@
   },
   "bundle": {
     "active": true,
-    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"],
+    "externalBin": ["binaries/openreel-ffmpeg", "binaries/openreel-ffprobe"],
     "linux": {
       "deb": {
         "depends": ["vainfo"]
