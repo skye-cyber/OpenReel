@@ -2,6 +2,8 @@ import { BrowserSession as bs } from "./browser";
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "./shared";
 import type {
+    CacheSweepResult,
+    CacheUsage,
     HardwareProbe,
     LogTail,
     PlatformInfo,
@@ -68,6 +70,16 @@ class PlatformToolsImpl {
     async getAudioDevice(): Promise<string | null> {
         if (!isTauri) return null;
         return invoke<string | null>('get_audio_device');
+    }
+
+    async getCacheUsage(): Promise<CacheUsage> {
+        if (!isTauri) return { fileCount: 0, totalBytes: 0 };
+        return invoke<CacheUsage>('get_cache_usage');
+    }
+
+    async sweepCache(): Promise<CacheSweepResult> {
+        if (!isTauri) throw new Error('Cache management requires the desktop build');
+        return invoke<CacheSweepResult>('sweep_cache_manual');
     }
 }
 

@@ -378,10 +378,35 @@ pub fn run() {
     commands::startup::get_startup_files,
     commands::transcode::prepare_transcode,
     commands::transcode::cancel_transcode,
+    commands::cache::sweep_cache_manual,
+    commands::cache::get_cache_usage,
   ])
     .setup(|app| {
       let handle = app.handle().clone();
-
+      let cache_handle = handle.clone();
+      tauri::async_runtime::spawn(async move {
+        match commands::cache::sweep_transcode_cache(&cache_handle) {
+          Ok(result) => {
+            log::info!(
+              "Cache sweep complete: age={}, size={}, freed={} bytes, remaining={} files / {} bytes",
+              result.files_deleted_by_age,
+              result.files_deleted_by_size,
+              result.bytes_freed,
+              result.remaining_files,
+              result.remaining_bytes,
+            );
+          }
+          Err(e) => log::warn!("Cache sweep failed: {e}"),
+        }
+      });
+      /*
+       * OR if above lags too much
+       * tauri::async_runtime::spawn(async move {
+       * let result = tauri::async_runtime::spawn_blocking(move || {
+       *     commands::cache::sweep_transcode_cache(&cache_handle)}).await;
+          // ...
+        });
+      */
       /*
        * skip(1) skips the executable path. On Linux, argv[0] is the binary path. On macOS, argv[0] is also the binary path. On Windows, argv[0] is the exe. argv[1..] are the file paths the OS passes.
        *

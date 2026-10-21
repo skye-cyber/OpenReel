@@ -8,3 +8,4 @@ pub mod settings;
 pub mod audio;
 pub mod startup;
 pub mod transcode;
+pub mod cache;

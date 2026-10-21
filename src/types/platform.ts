@@ -46,3 +46,16 @@ export interface LogTail {
   path: string;
   error: string | null;
 }
+
+export interface CacheUsage {
+  fileCount: number;
+  totalBytes: number;
+}
+
+export interface CacheSweepResult {
+  filesDeletedByAge: number;
+  filesDeletedBySize: number;
+  bytesFreed: number;
+  remainingFiles: number;
+  remainingBytes: number;
+}

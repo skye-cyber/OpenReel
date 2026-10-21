@@ -6,6 +6,8 @@ import { PlatformTools } from "../../lib/platform/system/tools";
 import { isTauri } from "../../lib/platform/system/shared";
 import { usePlayer } from "../../hooks/player";
 import { resetSettings } from "../../state/persistSettings";
+import { formatBytes } from "../../helpers/herpers";
+import type { CacheUsage } from "../../types/platform";
 
 export function AdvancedPanel() {
     const [level, setLevel] = useState<'error' | 'warn' | 'info' | 'debug'>('info');
@@ -13,7 +15,29 @@ export function AdvancedPanel() {
     const [confirmReset, setConfirmReset] = useState(false);
     const [resetting, setResetting] = useState(false);
     const p = usePlayer();
+    const [cacheUsage, setCacheUsage] = useState<CacheUsage | null>(null);
+    const [sweeping, setSweeping] = useState(false);
 
+    useEffect(() => {
+        if (!isTauri) return;
+        void PlatformTools.getCacheUsage().then(setCacheUsage).catch(() => { });
+    }, []);
+
+    const handleSweep = async () => {
+        setSweeping(true);
+        try {
+            const result = await PlatformTools.sweepCache();
+            const usage = await PlatformTools.getCacheUsage();
+            setCacheUsage(usage);
+            p.toast(
+                `Freed ${formatBytes(result.bytesFreed)} across ${result.filesDeletedByAge + result.filesDeletedBySize} file${result.filesDeletedByAge + result.filesDeletedBySize === 1 ? '' : 's'}`,
+            );
+        } catch (err) {
+            p.toast(`Sweep failed: ${err instanceof Error ? err.message : String(err)}`, 'err');
+        } finally {
+            setSweeping(false);
+        }
+    };
     const getFolder = useCallback(async () => {
         const folder = await PlatformTools.getSettingsFolder();
         setConfigFolder(folder);
@@ -41,6 +65,25 @@ export function AdvancedPanel() {
     return (
         <>
             <Group>Diagnostics</Group>
+            <Row
+                title="Transcode cache"
+                desc={
+                    cacheUsage
+                        ? `${cacheUsage.fileCount} file${cacheUsage.fileCount === 1 ? '' : 's'} · ${formatBytes(cacheUsage.totalBytes)} of 5 GB · entries older than 7 days are removed on startup`
+                        : 'Reading cache usage…'
+                }
+                control={
+                    <Button
+                        size="sm"
+                        icon="trash"
+                        disabled={sweeping || !isTauri}
+                        onClick={handleSweep}
+                    >
+                        {sweeping ? 'Clearing…' : 'Clear cache'}
+                    </Button>
+                }
+            />
+
             <Row
                 title="Log level"
                 desc="Controls how much detail is written to the log file."
