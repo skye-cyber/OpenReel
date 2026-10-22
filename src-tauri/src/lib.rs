@@ -368,6 +368,7 @@ pub fn run() {
     commands::fs::pick_folder,
     commands::fs::pick_file,
     commands::fs::pick_files,
+    commands::fs::save_file_bytes,
     commands::shell::open_url,
     commands::shell::open_path,
     commands::shell::check_for_updates,

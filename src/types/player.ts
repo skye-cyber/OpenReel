@@ -51,6 +51,11 @@ export interface Transcode {
     error: string | null;
 }
 
+export interface ABRepeat {
+    a: number | null;
+    b: number | null;
+}
+
 export interface PlayerState {
     theme: Theme;
     themePref: ThemePref;
@@ -248,4 +253,10 @@ export interface PlayerState {
     transcode: Transcode;
     setTranscode: (d: Transcode | null) => void;
     mediaRef: RefObject<Element>
+
+    currentAspect: 'fit' | 'fill' | 'stretch',
+    setCurrentAspect: (v: 'fit' | 'fill' | 'stretch') => void;
+    cycleAbRepeat: () => void;
+    abRepeat: ABRepeat;
+    setAbRepeat: (v: ABRepeat) => void;
 }

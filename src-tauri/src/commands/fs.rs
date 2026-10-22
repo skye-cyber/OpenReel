@@ -63,3 +63,20 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String
     Ok(result.map(|p| p.to_string()))
     // Ok(result.map(|p| p.to_string_lossy().to_string()))
 }
+
+#[tauri::command]
+pub async fn save_file_bytes(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    // Ensure the parent directory exists. The save dialog usually
+    // guarantees this, but a race or a manual path could miss it.
+    let path_buf = std::path::PathBuf::from(&path);
+    if let Some(parent) = path_buf.parent() {
+        std::fs::create_dir_all(parent)
+        .map_err(|e| format!("create dir: {e}"))?;
+    }
+
+    std::fs::write(&path_buf, bytes)
+    .map_err(|e| format!("write {}: {e}", path_buf.display()))?;
+
+    log::info!("Wrote {} bytes to {}", path_buf.display(), path_buf.metadata().map(|m| m.len()).unwrap_or(0));
+    Ok(())
+}

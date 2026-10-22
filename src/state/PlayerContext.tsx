@@ -21,7 +21,7 @@ import {
     type Settings,
 } from '../types/settings';
 import { Session } from '../lib/platform/session';
-import type { PlayerState, Transcode as TranscodeType } from '../types/player';
+import type { ABRepeat, PlayerState, Transcode as TranscodeType } from '../types/player';
 import { mediaFromPath } from '../helpers/herpers';
 import {
     DEFAULT_FOLDERS,
@@ -41,6 +41,7 @@ import { computeNextIndex, computePrevIndex, needsTranscode } from '../helpers/m
 import { prepareTranscode } from '../lib/platform/transcode';
 import { toMediaUrl } from '../lib/mediaPath';
 import { invoke } from '@tauri-apps/api/core';
+import { save } from '@tauri-apps/plugin-dialog';
 
 export const PlayerCtx = createContext<PlayerState | null>(null);
 
@@ -123,6 +124,9 @@ export function PlayerProvider({
         const [safeModeReason, setSafeModeReason] = useState<SafeModeReason | null>(
             initialSafeModeReason
         );
+        const [abRepeat, setAbRepeat] = useState<ABRepeat>({ a: null, b: null });
+
+        const [sessionAspect, setSessionAspect] = useState<'fit' | 'fill' | 'stretch' | null>(null);
         const _mediaInfoCache = useRef<Map<string, MediaProbe>>(new Map());
         const [transcode, setTranscode] = useState<TranscodeType | null>(null);
         const transcodeInFlightRef = useRef<Set<string>>(new Set());
@@ -166,6 +170,8 @@ export function PlayerProvider({
             ...DEFAULT_SETTINGS,
             ...prefs.settings,
         }));
+        const currentAspect = sessionAspect ?? settings.defaultAspect;
+
         const [aboutTab, setAboutTab] = useState<'about' | 'diag' | 'feed'>('about');
         const [themePref, setThemePref] = useState<ThemePref>(prefs.themePref);
         const [vol, _setVol] = useState(prefs.vol || 0.72);
@@ -204,6 +210,10 @@ export function PlayerProvider({
             } catch {
                 return null;
             }
+        }, []);
+
+        const setCurrentAspect = useCallback((aspect: 'fit' | 'fill' | 'stretch') => {
+            setSessionAspect(aspect);
         }, []);
 
         const setSetting = useCallback(<K extends SettingKey>(key: K, value: Settings[K]) => {
@@ -336,6 +346,7 @@ export function PlayerProvider({
             return () => { void unlisten.then(f => f()); };
         }, []);
 
+
         const announce = useCallback((msg: string) => {
             setLiveMessage(msg);
             // Clear after a moment so the same message can fire again.
@@ -462,6 +473,30 @@ export function PlayerProvider({
         const dismissToast = useCallback((id: string) => {
             setToasts(t => t.filter(x => x.id !== id));
         }, []);
+
+        const cycleAbRepeat = useCallback(() => {
+            const v = videoRef.current;
+            if (!v) return;
+            const now = v.currentTime;
+
+            if (abRepeat.a === null) {
+                // No A set. Set A at current time.
+                setAbRepeat({ a: now, b: null });
+                toast(`A–B: A set at ${fmt(now)}`);
+            } else if (abRepeat.b === null) {
+                // A set, no B. Set B, requiring B > A.
+                if (now <= abRepeat.a) {
+                    toast('A–B: mark B after A', 'err');
+                    return;
+                }
+                setAbRepeat({ a: abRepeat.a, b: now });
+                toast(`A–B: looping ${fmt(abRepeat.a)} → ${fmt(now)}`);
+            } else {
+                // Both set. Clear.
+                setAbRepeat({ a: null, b: null });
+                toast('A–B: cleared');
+            }
+        }, [abRepeat, toast]);
 
         const hasMedia = !!media && media.kind !== 'error';
         const dur = media?.dur ?? 0;
@@ -806,11 +841,78 @@ export function PlayerProvider({
             }
         }, [vol, muted, speed]);
 
-        const takeSnapshot = useCallback(() => {
+        const takeSnapshot = useCallback(async () => {
             if (!hasMedia) return;
-            const t = fmt(pos * dur);
-            toast(`Snapshot saved at ${t} — JPEG 1920×1080`);
-        }, [hasMedia, pos, dur, toast]);
+            const v = videoRef.current;
+            if (!v || v.readyState < 2) {
+                toast('Video not ready for a snapshot yet', 'err');
+                return;
+            }
+            if (!v.videoWidth || !v.videoHeight) {
+                toast('Video dimensions not available', 'err');
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = v.videoWidth;
+            canvas.height = v.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                toast('Could not create snapshot canvas', 'err');
+                return;
+            }
+
+            try {
+                ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+            } catch {
+                toast('Could not capture frame — the video source may be protected', 'err');
+                return;
+            }
+
+            const format = settings.snapshotFormat;
+            const mime = format === 'png' ? 'image/png'
+                : format === 'webp' ? 'image/webp'
+                    : 'image/jpeg';
+            const quality = format === 'png' ? undefined : 0.92;
+
+            const blob: Blob | null = await new Promise(resolve =>
+                canvas.toBlob(resolve, mime, quality)
+            );
+
+            if (!blob) {
+                toast('Snapshot failed', 'err');
+                return;
+            }
+
+            const safeTitle = media?.title.replace(/[^\w.-]+/g, '_') ?? 'snapshot';
+            const timestamp = fmt(v.currentTime).replace(/:/g, '-');
+            const ext = format === 'jpeg' ? 'jpg' : format;
+            const defaultName = `${safeTitle}-${timestamp}.${ext}`;
+
+            if (isTauri) {
+                const savePath = await save({
+                    defaultPath: defaultName,
+                    filters: [{ name: format.toUpperCase(), extensions: [ext] }],
+                });
+                if (!savePath) return; // user cancelled
+
+                const bytes = new Uint8Array(await blob.arrayBuffer());
+                await invoke('save_file_bytes', { path: savePath, bytes: Array.from(bytes) });
+                toast(`Snapshot saved to ${savePath}`);
+            } else {
+                // Browser: blob + download anchor.
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = defaultName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                toast(`Snapshot saved — ${canvas.width}×${canvas.height}`);
+            }
+        }, [hasMedia, toast, settings.snapshotFormat, media]);
+
 
         // syncs media when queueIndex changes
         useEffect(() => {
@@ -1517,7 +1619,8 @@ export function PlayerProvider({
             // Tracks man
             audioTracks, setAudioTracks, subtitleTracks, videoTracks, setSubtitleTracks,
             selectedAudio, selectedVideo, selectedSubtitle,
-            switchAudioTrack, switchSubtitleTrack, switchVideoTrack
+            switchAudioTrack, switchSubtitleTrack, switchVideoTrack,
+            currentAspect, setCurrentAspect, abRepeat, cycleAbRepeat,
         }), [
             // ---- Must mirror the value object field-for-field ----
             theme, themePref, systemDark,
@@ -1577,7 +1680,8 @@ export function PlayerProvider({
             // Tracks man
             audioTracks, setAudioTracks, videoTracks, subtitleTracks, setSubtitleTracks,
             selectedAudio, selectedVideo, selectedSubtitle,
-            switchAudioTrack, switchSubtitleTrack, switchVideoTrack
+            switchAudioTrack, switchSubtitleTrack, switchVideoTrack,
+            currentAspect, setCurrentAspect, abRepeat, cycleAbRepeat,
         ]);
 
         return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

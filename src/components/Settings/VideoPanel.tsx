@@ -24,7 +24,7 @@ export function VideoPanel() {
         }
     }, [])
     useEffect(() => {
-        if(probeResult && probe) return
+        if (probeResult && probe) return
         probeHardwareDecoding()
     }, [])
     return (
@@ -78,7 +78,7 @@ export function VideoPanel() {
                 title="Default aspect ratio"
                 changed={isChanged('defaultAspect')}
                 onReset={() => resetSetting('defaultAspect')}
-                desc="Used when a file does not declare its display aspect."
+                desc="Used as the starting value each session. Changing this overrides any in-session aspect selection."
                 control={
                     <Seg<'fit' | 'fill' | 'stretch'>
                         value={settings.defaultAspect}

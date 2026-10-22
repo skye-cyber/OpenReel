@@ -39,7 +39,6 @@ export function SubtitleOverlay({ currentTime, src, cues: cuesProp }: SubtitleOv
         cuesProp ? null : src ?? null,
         currentTime,
     );
-    console.log(activeText)
     const style = settings.subtitleStyle;
     const disabled = settings.useSystemCaptionStyle;
 

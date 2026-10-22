@@ -46,6 +46,10 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             if (Number.isFinite(v.duration) && v.duration > 0) {
                 p.setPos(v.currentTime / v.duration);
             }
+            // A–B repeat: if both points are set and B > A, loop at B.
+            if (p.abRepeat.a !== null && p.abRepeat.b !== null && v.currentTime >= p.abRepeat.b) {
+                v.currentTime = p.abRepeat.a;
+            }
         };
         const onDurationChange = () => {
             if (Number.isFinite(v.duration) && v.duration > 0 && media.dur !== v.duration) {
@@ -84,6 +88,11 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         const onEnded = () => {
             if (p.mediaRef && p.mediaRef.current?.id !== media.id) return;  // stale element, media changed
             p.syncPlayingFromElement(false);
+            if (p.repeat === 'one') {
+                v.currentTime = 0;
+                void v.play();
+                return;
+            }
             if (p.settings.autoplayNext) {
                 requestAnimationFrame(() => p.nextItem());
             } else {
@@ -205,6 +214,24 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         }));
     };
 
+    const aspectMenuItems = (): ContextMenuItem[] => [
+        {
+            label: 'Fit',
+            onSelect: () => p.setCurrentAspect('fit'),
+            tick: p.currentAspect === 'fit',
+        },
+        {
+            label: 'Fill',
+            onSelect: () => p.setCurrentAspect('fill'),
+            tick: p.currentAspect === 'fill',
+        },
+        {
+            label: 'Stretch',
+            onSelect: () => p.setCurrentAspect('stretch'),
+            tick: p.currentAspect === 'stretch',
+        },
+    ];
+
     const entries: ContextMenuEntry[] = [
         {
             label: p.playing ? 'Pause' : 'Play',
@@ -235,12 +262,10 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         ] : []),
         { kind: 'separator' },
         {
-            label: 'Aspect ratio', icon: 'grid',
-            onSelect: () => {
-                const next = p.settings.defaultAspect === 'fit' ? 'fill' : p.settings.defaultAspect === 'fill' ? 'stretch' : 'fit';
-                p.setSetting('defaultAspect', next);
-                p.toast(`Aspect: ${next} — Undo`);
-            },
+            kind: 'submenu',
+            label: 'Aspect ratio',
+            icon: 'grid',
+            items: aspectMenuItems(),
         },
         { label: 'Snapshot', icon: 'film', onSelect: p.takeSnapshot },
         { kind: 'separator' },
@@ -249,8 +274,8 @@ export function VideoStage({ media }: { media: VideoMedia }) {
     ];
 
     const objectFit =
-        p.settings.defaultAspect === 'fill' ? 'object-cover'
-            : p.settings.defaultAspect === 'stretch' ? 'object-fill'
+        p.currentAspect === 'fill' ? 'object-cover'
+            : p.currentAspect === 'stretch' ? 'object-fill'
                 : 'object-contain';
 
     return (
