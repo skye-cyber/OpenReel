@@ -195,7 +195,7 @@ pub async fn read_log_tail(
     app: tauri::AppHandle,
     lines: Option<usize>,
 ) -> Result<LogTail, String> {
-    let max_lines = lines.unwrap_or(200).min(1000);
+    let max_lines = lines.unwrap_or(1000).min(2000);
 
     // Get log file from path.rs
     let log_path = crate::paths::log_file(&app);

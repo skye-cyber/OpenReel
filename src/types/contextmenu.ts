@@ -7,6 +7,7 @@ export interface ContextMenuItem {
     disabled?: boolean;
     separatorBefore?: boolean;
     onSelect: () => void;
+    tick?: boolean;
 }
 
 export interface ContextMenuSubmenu {

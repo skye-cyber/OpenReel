@@ -28,7 +28,7 @@ import {
     librarymanager,
 } from '../lib/platform/library';
 import { labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
-import type { AudioTrackInfo, SubtitleTrackInfo } from '../types/mkvSource';
+import type { TrackInfo } from '../types/mkvSource';
 import { CrashHandler } from '../lib/platform/system/Crash';
 import { isTauri, type SafeModeReason } from '../lib/platform/system/shared';
 import { PlatformTools } from '../lib/platform/system/tools';
@@ -37,7 +37,7 @@ import { savePrefs } from './persistSettings';
 import type { Folder } from '../types';
 import { listen } from '@tauri-apps/api/event';
 import type { MediaProbe } from '../types/media';
-import { computeNextIndex, computePrevIndex, needsTranscode } from '../helpers/media';
+import { computeNextIndex, computePrevIndex, formatTrackLabel, needsTranscode } from '../helpers/media';
 import { prepareTranscode } from '../lib/platform/transcode';
 import { toMediaUrl } from '../lib/mediaPath';
 import { invoke } from '@tauri-apps/api/core';
@@ -73,9 +73,12 @@ export function PlayerProvider({
         const [media, _setMedia] = useState<Media | null>(null);
         const [playing, _setPlaying] = useState(false);
         const [pos, setPos] = useState(0);
-        const [audioTrack, setAudioTrack] = useState(0);
-        const [audioTracks, setAudioTracks] = useState<AudioTrackInfo[]>([]);
-        const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrackInfo[]>([]);
+        const [audioTracks, setAudioTracks] = useState<TrackInfo[]>([]);
+        const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[]>([]);
+        const [videoTracks, setVideoTracks] = useState<TrackInfo[]>([]);
+        const [selectedAudio, setSelectedAudio] = useState(0);
+        const [selectedSubtitle, setSelectedSubtitle] = useState(-1);  // -1 = off
+        const [selectedVideo, setSelectedVideo] = useState(0);
         /*
          -1 means "Off"
          0 means the first subtitle *track (English in the demo)
@@ -285,7 +288,7 @@ export function PlayerProvider({
                         itemCount: f.itemCount,
                     })),
                     repositories,
-                    subTrack,
+                    subtitleTrack: selectedSubtitle,
                     recentIds,
                 });
             }, 300);
@@ -355,13 +358,13 @@ export function PlayerProvider({
         }, [announce]);
 
         const setAudioTrackAnnounced = useCallback((n: number) => {
-            setAudioTrack(n);
+            switchAudioTrack(n);
             const names = ['English', 'German', 'Commentary'];
             announce(`Audio track: ${names[n] ?? `#${n + 1}`}`);
         }, [announce]);
 
         const setSubTrackAnnounced = useCallback((n: number) => {
-            setSubTrack(n);
+            switchSubtitleTrack(n);
             announce(n < 0 ? 'Subtitles off' : `Subtitles: ${['English', 'German', 'English (forced)'][n] ?? `#${n + 1}`}`);
         }, [announce]);
 
@@ -667,6 +670,11 @@ export function PlayerProvider({
                 setTranscode(prev => prev && prev.mediaId === m.id
                     ? { ...prev, status: 'done', percent: 1.0 }
                     : prev);
+
+                const tracks = await invoke<ExtractedTracks>('list_extracted_tracks', { path: m.id });
+                setAudioTracks(tracks.audio);
+                setSubtitleTracks(tracks.subtitles);
+                setVideoTracks(tracks.videos);
             } catch (err) {
                 setTranscode(prev => prev && prev.mediaId === m.id
                     ? { ...prev, status: 'error', error: String(err) }
@@ -702,6 +710,54 @@ export function PlayerProvider({
             );
         }, [queue, toast]);
 
+        const switchAudioTrack = useCallback((index: number) => {
+            if (index < 0 || index >= audioTracks.length) return;
+            const track = audioTracks[index];
+            if (!track) return;
+
+            setSelectedAudio(index);
+
+            const item = queueRef.current[queueIndex];
+            if (!item) return;
+            if (item.media.url === track.url) return;
+
+            const currentTime = videoRef.current?.currentTime ?? 0;
+
+            setQueue(prev => prev.map(q =>
+            q.id === item.id ? { ...q, media: { ...q.media, url: track.url } } : q
+            ));
+
+            pendingSeekRef.current = currentTime;
+            pendingPlayRef.current = true;
+        }, [audioTracks, queueIndex]);
+
+        const switchSubtitleTrack = useCallback((index: number) => {
+            // Subtitles are rendered by SubtitleOverlay, not by the <video>
+            // element. No media reload, no position save — just update the
+            // selection so the overlay resolves the new VTT URL.
+            setSelectedSubtitle(index);
+        }, []);
+
+        const switchVideoTrack = useCallback((index: number) => {
+            if (index < 0 || index >= videoTracks.length) return;
+            const track = videoTracks[index];
+            if (!track) return;
+
+            setSelectedVideo(index);
+
+            const item = queueRef.current[queueIndex];
+            if (!item) return;
+            if (item.media.url === track.url) return;
+
+            const currentTime = videoRef.current?.currentTime ?? 0;
+
+            setQueue(prev => prev.map(q =>
+            q.id === item.id ? { ...q, media: { ...q.media, url: track.url } } : q
+            ));
+
+            pendingSeekRef.current = currentTime;
+            pendingPlayRef.current = true;
+        }, [videoTracks, queueIndex]);
         const openFiles = useCallback(async () => {
             const paths = await PlatformTools.pickFiles();
             if (!paths || paths.length === 0) return;
@@ -755,7 +811,6 @@ export function PlayerProvider({
         useEffect(() => {
             if (queueIndex < 0 || queueIndex >= queue.length) return;
             if (media === null) return;  // ← no media means nothing to play
-            console.log(media)
             const item = queue[queueIndex];
             if (!item) return;
 
@@ -1390,7 +1445,7 @@ export function PlayerProvider({
             media, playMedia, playMediaInternal, setMedia, hasMedia,
             // transport
             playing, setPlaying, syncPlayingFromElement, pos, dur, setPos, vol, setVol, muted, setMuted,
-            speed, setSpeed, audioTrack, setAudioTrack, subTrack, setSubTrack,
+            speed, setSpeed, subTrack, setSubTrack,
             // queue
             queue, setQueue, queueIndex, playQueueItem, nextItem, prevItem,
             // panels
@@ -1440,7 +1495,6 @@ export function PlayerProvider({
             // Folder management
             addFolderFromPicker, removeFolder, removeLibrary, folders,
             registerVideoElement, updateMediaDuration, watchAvailable,
-            audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks,
             // Crash
             exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason,
             consumePendingPlayback,
@@ -1455,12 +1509,16 @@ export function PlayerProvider({
             clearQueue, queueMoveNext, queueMoveToTop, openDroppedFiles,
             // MKV handling
             transcode, setTranscode, mediaRef,
+            // Tracks man
+            audioTracks, setAudioTracks, subtitleTracks, videoTracks, setSubtitleTracks,
+            selectedAudio, selectedVideo, selectedSubtitle,
+            switchAudioTrack, switchSubtitleTrack, switchVideoTrack
         }), [
             // ---- Must mirror the value object field-for-field ----
             theme, themePref, systemDark,
             view,
             media, hasMedia,
-            playing, pos, dur, vol, muted, speed, audioTrack, subTrack,
+            playing, pos, dur, vol, muted, speed, subTrack,
             queue, queueIndex,
             queueOpen, advanced,
             buffering, offline,
@@ -1495,7 +1553,6 @@ export function PlayerProvider({
             // Folder management
             addFolderFromPicker, removeFolder, removeLibrary, folders,
             registerVideoElement, updateMediaDuration, watchAvailable,
-            audioTracks, subtitleTracks, setSubtitleTracks, setAudioTracks,
             // Crash
             exitSafeModeAndReload, enterSafeMode, safeMode, safeModeReason,
             consumePendingPlayback,
@@ -1511,7 +1568,11 @@ export function PlayerProvider({
             // QUEUE ops
             repeat, setRepeat, shuffle, toggleShuffle, cycleRepeat, removeQueueItem, clearQueue, queueMoveToTop, queueMoveNext, openDroppedFiles,
             // MKV handling
-            transcode, setTranscode, mediaRef
+            transcode, setTranscode, mediaRef,
+            // Tracks man
+            audioTracks, setAudioTracks, videoTracks, subtitleTracks, setSubtitleTracks,
+            selectedAudio, selectedVideo, selectedSubtitle,
+            switchAudioTrack, switchSubtitleTrack, switchVideoTrack
         ]);
 
         return <PlayerCtx.Provider value={value}>{children}</PlayerCtx.Provider>;

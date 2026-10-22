@@ -120,11 +120,11 @@ export function Transport() {
                             <MenuHead>Audio track</MenuHead>
                             {AUDIO_TRACKS && AUDIO_TRACKS?.map(t => (
                                 <MenuItem
-                                    key={t.streamIndex}
-                                    tick={p.audioTrack === t.streamIndex}
+                                    key={t.index}
+                                    tick={p.selectedAudio === t.index}
                                     sub={t.title as string}
                                     onClick={() => {
-                                        p.setAudioTrackAnnounced(t.streamIndex);
+                                        p.setAudioTrackAnnounced(t.index);
                                         setOpenMenu(null);
                                         p.toast(`Audio: ${t.language} — Undo`);
                                     }}
@@ -139,26 +139,25 @@ export function Transport() {
                     <div className="relative inline-flex">
                         <IconButton
                             icon="cc"
-                            active={openMenu === 'subs' || p.subTrack >= 0}
+                            active={openMenu === 'subs' || p.selectedSubtitle >= 0}
                             disabled={!p.hasMedia}
                             title="Subtitles"
                             onClick={() => toggle('subs')}
                         />
                         <Menu className='h-fit max-h-80 overflow-y-auto' open={openMenu === 'subs'} onClose={() => setOpenMenu(null)}>
                             <MenuHead>Subtitles</MenuHead>
-                            <MenuItem tick={p.subTrack === -1} onClick={() => { p.setSubTrackAnnounced(-1); setOpenMenu(null); }}>
+                            <MenuItem tick={p.selectedSubtitle === -1} onClick={() => { p.setSubTrackAnnounced(-1); setOpenMenu(null); }}>
                                 Off
                             </MenuItem>
                             <MenuSep />
-                            {SUB_TRACKS && SUB_TRACKS?.map(t => (
+                            {SUB_TRACKS && SUB_TRACKS?.map((t, i) => (
                                 <MenuItem
-                                    key={t.streamIndex}
-                                    tick={p.subTrack === t.streamIndex}
+                                    key={t.index}
+                                    tick={p.selectedSubtitle === i}
                                     sub={t.title as string}
                                     onClick={() => {
-                                        p.setAudioTrackAnnounced(t.streamIndex);
+                                        p.switchSubtitleTrack(i);
                                         setOpenMenu(null);
-                                        p.toast(`Audio: ${t.language} — Undo`);
                                     }}
                                 >
                                     {t.language}

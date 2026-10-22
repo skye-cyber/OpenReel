@@ -8,7 +8,7 @@ import type {
 } from "../types";
 import type { Settings, SettingKey, Cat } from "./settings";
 import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
-import type { AudioTrackInfo, SubtitleTrackInfo } from "./mkvSource";
+import type { AudioTrackInfo, SubtitleTrackInfo, TrackInfo } from "./mkvSource";
 import type { SafeModeReason } from "../lib/platform/system/shared";
 import type { PersistedPrefs } from "./persists";
 import type { MediaProbe } from "./media";
@@ -81,10 +81,25 @@ export interface PlayerState {
     speed: number;
     setSpeed: (n: number) => void;
 
-    audioTrack: number;
-    setAudioTrack: (n: number) => void;
-    subTrack: number;
-    setSubTrack: (n: number) => void;
+    // init:def
+    audioTracks: TrackInfo[];
+    subtitleTracks: TrackInfo[];
+    videoTracks: TrackInfo[];
+    // set
+    setAudioTracks: (n: TrackInfo[]) => void;
+    setVideoTracks: (n: TrackInfo[]) => void;
+    setSubtitleTracks: (n: TrackInfo[]) => void;
+    // select
+    selectedAudio: number;
+    selectedVideo: number;
+    selectedSubtitle: number;
+    // setSelectedAudio: (n: number) => void;;
+    // setSelectedVideo: (n: number) => void;;
+    // setSelectedSubtitle: (n: number) => void;;
+    // Fn
+    switchVideoTrack: (n: number) => void;
+    switchSubtitleTrack: (n: number) => void;
+    switchAudioTrack: (n: number) => void;
 
     queue: QueueItem[];
     queueIndex: number;
@@ -199,11 +214,6 @@ export interface PlayerState {
     updateMediaDuration: (d: number) => void;
 
     watchAvailable: boolean;
-
-    audioTracks: AudioTrackInfo[];
-    subtitleTracks: SubtitleTrackInfo[];
-    setAudioTracks: (t: AudioTrackInfo[]) => void;
-    setSubtitleTracks: (t: SubtitleTrackInfo[]) => void;
 
     // Crash session
     safeMode: boolean;

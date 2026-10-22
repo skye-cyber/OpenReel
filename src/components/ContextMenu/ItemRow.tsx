@@ -18,6 +18,9 @@ export function ItemRow({
                 {entry.shortcut && (
                     <span className="text-[11px] text-text-3 font-mono shrink-0">{entry.shortcut}</span>
                 )}
+                {entry.tick && (
+                    <Icon name="check" size={14} className="text-accent shrink-0" />
+                )}
             </button>
         </>
     );

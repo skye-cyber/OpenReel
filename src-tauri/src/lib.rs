@@ -251,11 +251,25 @@ fn build_app() -> tauri::Builder<tauri::Wry> {
   // MUST be first. Before other plugins, before .manage().
   .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
     // argv[0] is the executable path. Everything after is file args.
+    // Cold start
     let paths: Vec<String> = argv
     .into_iter()
     .skip(1)
     .filter(|a| !a.starts_with('-'))
+    .map(commands::startup::absolutize)
     .collect();
+    /* For single-instance forwarding
+      let cwd_path = PathBuf::from(&cwd);
+      let paths: Vec<*String> = argv
+      .into_iter()
+      .skip(1)
+      .filter(|a| !a.starts_with('-'))
+      .map(|a| {
+      let p = PathBuf::from(&a);
+      if p.is_absolute() { a } else { cwd_path.join(p).to_string_lossy().to_string() }
+      })
+      .collect();
+  */
 
     if paths.is_empty() {
       // No file args — just focus the existing window.
@@ -378,6 +392,7 @@ pub fn run() {
     commands::startup::get_startup_files,
     commands::transcode::prepare_transcode,
     commands::transcode::cancel_transcode,
+    commands::transcode::list_extracted_tracks,
     commands::cache::sweep_cache_manual,
     commands::cache::get_cache_usage,
   ])

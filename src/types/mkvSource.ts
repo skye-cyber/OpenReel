@@ -1,3 +1,17 @@
+export interface TrackInfo {
+    /** Index in the source container (0-based among same-kind streams). */
+    index: number;
+    /** ffprobe-reported language code, e.g. "eng", "spa". */
+    language: string | null;
+    title: string | null;
+    isDefault: boolean;
+    isForced: boolean;
+    /** Codec name from ffprobe, e.g. "aac", "subrip". */
+    codec: string;
+    /** URL of the extracted file for this track. */
+    url: string;
+}
+
 export interface AudioTrackInfo {
     /** Stream index in the source container (used for setAudioStreamIndex). */
     streamIndex: number;

@@ -10,6 +10,7 @@ use tauri::Manager;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
+use crate::http_server;
 
 /// Max concurrent FFmpeg processes.
 const MAX_CONCURRENT: usize = 2;
@@ -29,6 +30,51 @@ pub struct TranscodeResult {
     pub output_path: String,
     pub duration: f64,
     pub cached: bool,
+}
+
+#[derive(Clone)]
+struct StreamInfo {
+    index: u32,
+    kind: StreamKind,      // Video | Audio | Subtitle
+    codec: String,
+    language: Option<String>,
+    title: Option<String>,
+    is_default: bool,
+    is_forced: bool,
+    /// True for album art (cover.jpg), false for real video streams.
+    is_attached_pic: bool,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum StreamKind {
+    Video,
+    Audio,
+    Subtitle,
+}
+
+struct ProbeResult {
+    duration: f64,
+    streams: Vec<StreamInfo>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractedTrack {
+    pub index: u32,
+    pub language: Option<String>,
+    pub title: Option<String>,
+    pub is_default: bool,
+    pub is_forced: bool,
+    pub codec: String,
+    pub url: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractedTracks {
+    pub audio: Vec<ExtractedTrack>,
+    pub subtitles: Vec<ExtractedTrack>,
+    pub videos: Vec<ExtractedTrack>,
 }
 
 /// Runtime state for the transcode subsystem.
@@ -148,7 +194,7 @@ pub async fn prepare_transcode(
 
     // Run the transcode; ensure cleanup happens on every exit path.
     let result = run_transcode(
-        &app, &path, &key, &output_path, &cancel_flag, &on_progress,
+        &app, &path, &key, &output_path, &cache_dir, &cancel_flag, &on_progress,
     ).await;
 
     // ---------- Cleanup ----------
@@ -170,6 +216,7 @@ async fn run_transcode(
     path: &str,
     key: &str,
     output_path: &PathBuf,
+    cache_dir: &PathBuf,
     cancel_flag: &Arc<AtomicBool>,
     on_progress: &Channel<TranscodeProgress>,
 ) -> Result<TranscodeResult, String> {
@@ -326,6 +373,16 @@ async fn run_transcode(
     });
 
     log::info!("Transcode complete: {}", output_path.display());
+    log::info!("Dispatch transcode for alternative tracks");
+
+    // ---------- Extract alternate tracks ----------
+    // Runs in the background after the main transcode. The main
+    // {key}.mp4 is already playable; alternates are for track selection.
+    if let Ok(probe) = probe_source(app, path).await {
+        let _ = extract_alternates(
+            app, path, key, &probe, cancel_flag, &cache_dir,
+        ).await;
+    }
 
     Ok(TranscodeResult {
         output_path: output_path.to_string_lossy().to_string(),
@@ -334,6 +391,136 @@ async fn run_transcode(
     })
 }
 
+async fn extract_alternates(
+    app: &tauri::AppHandle,
+    path: &str,
+    key: &str,
+    probe: &ProbeResult,
+    cancel_flag: &Arc<AtomicBool>,
+    cache_dir: &PathBuf,
+) -> Result<(), String> {
+    let ffmpeg_path = app.path()
+    .resolve("openreel-ffmpeg", tauri::path::BaseDirectory::Resource)
+    .map_err(|e| format!("resolve ffmpeg: {e}"))?;
+
+    // Partition streams by kind, preserving input order.
+    let video_streams: Vec<&StreamInfo> = probe.streams.iter()
+    .filter(|s| s.kind == StreamKind::Video && !s.is_attached_pic)
+    .collect();
+    let audio_streams: Vec<&StreamInfo> = probe.streams.iter()
+    .filter(|s| s.kind == StreamKind::Audio)
+    .collect();
+    let subtitle_streams: Vec<&StreamInfo> = probe.streams.iter()
+    .filter(|s| s.kind == StreamKind::Subtitle)
+    .collect();
+
+    let video_copyable = matches!(probe.streams.iter()
+    .find(|s| s.kind == StreamKind::Video && !s.is_attached_pic)
+    .map(|s| s.codec.as_str())
+    .unwrap_or(""), "h264" | "hevc");
+
+    let audio_codec = probe.streams.iter()
+    .find(|s| s.kind == StreamKind::Audio)
+    .map(|s| s.codec.as_str())
+    .unwrap_or("");
+
+    let audio_copyable = matches!(audio_codec, "aac" | "mp3");
+
+    if !video_copyable || !audio_copyable {
+        log::info!("Skipping alternate track extraction: source requires re-encoding");
+        return Ok(());
+    }
+
+    // Alternate audio: video 0 + audio N (N >= 1).
+    for (i, _audio) in audio_streams.iter().enumerate().skip(1) {
+        if cancel_flag.load(Ordering::Relaxed) { return Ok(()); }
+
+        let out_path = cache_dir.join(format!("{key}.a{i}.mp4"));
+        if out_path.exists() { continue; }
+
+        let mut cmd = Command::new(&ffmpeg_path);
+        cmd.args([
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", path,
+            "-map", "0:v:0",
+            "-map", &format!("0:a:{i}"),
+                 "-c:v", "copy",
+                 "-c:a", "copy",
+                 "-movflags", "+faststart",
+                 "-y",
+                 out_path.to_str().unwrap_or(""),
+        ]);
+        cmd.stdin(Stdio::null());
+        cmd.stdout(Stdio::null());
+        cmd.stderr(Stdio::null());
+
+        match cmd.status().await {
+            Ok(s) if s.success() => {
+                log::info!("Extracted alternate audio {} -> {}", i, out_path.display());
+            }
+            Ok(s) => log::warn!("Alternate audio {} extraction failed: {:?}", i, s.code()),
+            Err(e) => log::warn!("Alternate audio {} spawn failed: {}", i, e),
+        }
+    }
+
+    // Alternate video: video N + audio 0 (N >= 1).
+    for (i, _video) in video_streams.iter().enumerate().skip(1) {
+        if cancel_flag.load(Ordering::Relaxed) { return Ok(()); }
+
+        let out_path = cache_dir.join(format!("{key}.v{i}.mp4"));
+        if out_path.exists() { continue; }
+
+        let mut cmd = Command::new(&ffmpeg_path);
+        cmd.args([
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", path,
+            "-map", &format!("0:v:{i}"),
+                 "-map", "0:a:0",
+                 "-c:v", "copy",
+                 "-c:a", "copy",
+                 "-movflags", "+faststart",
+                 "-y",
+                 out_path.to_str().unwrap_or(""),
+        ]);
+        cmd.stdin(Stdio::null());
+        cmd.stdout(Stdio::null());
+        cmd.stderr(Stdio::null());
+
+        if let Err(e) = cmd.status().await {
+            log::warn!("Alternate video {} spawn failed: {}", i, e);
+        }
+    }
+
+    // Subtitles: each to a VTT file.
+    for (i, _sub) in subtitle_streams.iter().enumerate() {
+        if cancel_flag.load(Ordering::Relaxed) { return Ok(()); }
+
+        let out_path = cache_dir.join(format!("{key}.s{i}.vtt"));
+        if out_path.exists() { continue; }
+
+        let mut cmd = Command::new(&ffmpeg_path);
+        cmd.args([
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", path,
+            "-map", &format!("0:s:{i}"),
+                 "-f", "webvtt",
+                 "-y",
+                 out_path.to_str().unwrap_or(""),
+        ]);
+        cmd.stdin(Stdio::null());
+        cmd.stdout(Stdio::null());
+        cmd.stderr(Stdio::null());
+
+        if let Err(e) = cmd.status().await {
+            log::warn!("Subtitle {} extraction failed: {}", i, e);
+        }
+    }
+
+    Ok(())
+}
 // ============================================================
 // Cancel command
 // ============================================================
@@ -438,4 +625,177 @@ async fn probe_streams(
     }
 
     Ok((duration, video_codec, audio_codec))
+}
+
+/*
+ *The is_attached_pic filter matters for audio files with cover art.
+ * An MP3 has a "video" stream for the album art.
+ * It has no codec_type: subtitle streams and only one audio.
+ * The extraction loop must skip is_attached_pic video streams — extracting them would produce a useless 400×250 one-frame MP4.
+ */
+async fn probe_source(app: &tauri::AppHandle, path: &str) -> Result<ProbeResult, String> {
+    let ffprobe_path = app.path()
+    .resolve("openreel-ffprobe", tauri::path::BaseDirectory::Resource)
+    .map_err(|e| format!("resolve ffprobe: {e}"))?;
+
+    let output = Command::new(&ffprobe_path)
+    .args([
+        "-v", "error",
+        "-print_format", "json",
+        "-show_format",
+        "-show_streams",
+        path,
+    ])
+    .output()
+    .await
+    .map_err(|e| format!("spawn ffprobe: {e}"))?;
+
+    if !output.status.success() {
+        return Err("ffprobe failed".into());
+    }
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)
+    .map_err(|e| format!("parse ffprobe: {e}"))?;
+
+    let duration = json
+    .get("format")
+    .and_then(|f| f.get("duration"))
+    .and_then(|d| d.as_str())
+    .and_then(|s| s.parse::<f64>().ok())
+    .unwrap_or(0.0);
+
+    let mut streams = Vec::new();
+    if let Some(arr) = json.get("streams").and_then(|s| s.as_array()) {
+        for s in arr {
+            let kind = match s.get("codec_type").and_then(|t| t.as_str()) {
+                Some("video") => StreamKind::Video,
+                Some("audio") => StreamKind::Audio,
+                Some("subtitle") => StreamKind::Subtitle,
+                _ => continue,
+            };
+
+            let is_attached_pic = s
+            .get("disposition")
+            .and_then(|d| d.get("attached_pic"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) == 1;
+
+            let is_default = s
+            .get("disposition")
+            .and_then(|d| d.get("default"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) == 1;
+
+            let is_forced = s
+            .get("disposition")
+            .and_then(|d| d.get("forced"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) == 1;
+
+            streams.push(StreamInfo {
+                index: s.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                kind,
+                codec: s.get("codec_name").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+                language: s.get("tags")
+                .and_then(|t| t.get("language"))
+                .and_then(|l| l.as_str())
+                .map(|s| s.to_string()),
+                title: s.get("tags")
+                .and_then(|t| t.get("title"))
+                .and_then(|l| l.as_str())
+                .map(|s| s.to_string()),
+                is_default,
+                is_forced,
+                is_attached_pic,
+            });
+        }
+    }
+
+    Ok(ProbeResult { duration, streams })
+}
+
+#[tauri::command]
+pub async fn list_extracted_tracks(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<ExtractedTracks, String> {
+    // Recompute the key. This must match prepare_transcode's key exactly.
+    let meta = std::fs::metadata(&path).map_err(|e| format!("stat: {e}"))?;
+    let mtime = meta.modified().ok()
+    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+    .map(|d| d.as_secs())
+    .unwrap_or(0);
+    let key = format!("{:016x}", hash_key(&path, mtime, meta.len()));
+
+    let cache_dir = crate::paths::transcode_cache_dir(&app);
+    let probe = probe_source(&app, &path).await?;
+
+    let port = app.state::<http_server::ServerAddr>().0;
+    let base = format!("http://127.0.0.1:{port}/stream?path=");
+
+    let mut audio = Vec::new();
+    let mut subtitles = Vec::new();
+    let mut videos = Vec::new();
+
+    let audio_streams: Vec<&StreamInfo> = probe.streams.iter()
+    .filter(|s| s.kind == StreamKind::Audio).collect();
+    let subtitle_streams: Vec<&StreamInfo> = probe.streams.iter()
+    .filter(|s| s.kind == StreamKind::Subtitle).collect();
+    let video_streams: Vec<&StreamInfo> = probe.streams.iter()
+    .filter(|s| s.kind == StreamKind::Video && !s.is_attached_pic).collect();
+
+    for (i, s) in audio_streams.iter().enumerate() {
+        let file = if i == 0 {
+            cache_dir.join(format!("{key}.mp4"))
+        } else {
+            cache_dir.join(format!("{key}.a{i}.mp4"))
+        };
+        if !file.exists() { continue; }
+        let encoded = urlencoding::encode(&file.to_string_lossy()).into_owned();
+        audio.push(ExtractedTrack {
+            index: s.index,
+            language: s.language.clone(),
+            title: s.title.clone(),
+            is_default: s.is_default,
+            is_forced: s.is_forced,
+            codec: s.codec.clone(),
+            url: format!("{base}{encoded}"),
+        });
+    }
+
+    for (i, s) in subtitle_streams.iter().enumerate() {
+        let file = cache_dir.join(format!("{key}.s{i}.vtt"));
+        if !file.exists() { continue; }
+        let encoded = urlencoding::encode(&file.to_string_lossy()).into_owned();
+        subtitles.push(ExtractedTrack {
+            index: s.index,
+            language: s.language.clone(),
+            title: s.title.clone(),
+            is_default: s.is_default,
+            is_forced: s.is_forced,
+            codec: s.codec.clone(),
+            url: format!("{base}{encoded}"),
+        });
+    }
+
+    for (i, s) in video_streams.iter().enumerate() {
+        let file = if i == 0 {
+            cache_dir.join(format!("{key}.mp4"))
+        } else {
+            cache_dir.join(format!("{key}.v{i}.mp4"))
+        };
+        if !file.exists() { continue; }
+        let encoded = urlencoding::encode(&file.to_string_lossy()).into_owned();
+        videos.push(ExtractedTrack {
+            index: s.index,
+            language: s.language.clone(),
+            title: s.title.clone(),
+            is_default: s.is_default,
+            is_forced: s.is_forced,
+            codec: s.codec.clone(),
+            url: format!("{base}{encoded}"),
+        });
+    }
+
+    Ok(ExtractedTracks { audio, subtitles, videos })
 }

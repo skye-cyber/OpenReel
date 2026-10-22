@@ -10,6 +10,7 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import { SubtitleOverlay } from '../components/SubtitleOverlay';
 import { CloseMediaButton } from '../components/mediaButton';
 import { fmt } from '../lib/format';
+import { formatTrackLabel } from '../helpers/media';
 
 /**
  * **VideoStage**\
@@ -138,38 +139,71 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         p.setSubtitleTracks([]);
     }, [media.id, p.setAudioTracks, p.setSubtitleTracks]);
 
-    /* Fallback context menus for non-MKV media — the mock track names. */
-    const audioMenuItems = (): ContextMenuItem[] => [
-        {
-            label: 'English',
-            onSelect: () => { p.setAudioTrack(0); p.toast('Audio: English — Undo'); },
-            separatorBefore: true,
-        },
-        {
-            label: 'German',
-            onSelect: () => { p.setAudioTrack(1); p.toast('Audio: German — Undo'); },
-        },
-        {
-            label: 'Commentary',
-            onSelect: () => { p.setAudioTrack(2); p.toast('Audio: Commentary — Undo'); },
-        },
-    ];
+    const audioMenuItems = (): ContextMenuItem[] => {
+        if (p.audioTracks.length === 0) {
+            return [{
+                label: 'No alternate audio tracks',
+                disabled: true,
+                separatorBefore: true,
+                onSelect: () => { },
+            }];
+        }
 
-    const subtitleMenuItems = (): ContextMenuItem[] => [
-        {
+        return p.audioTracks.map((track, i) => ({
+            label: formatTrackLabel(track.language, track.title, `Audio ${i + 1}`),
+            onSelect: () => p.switchAudioTrack(i),
+            tick: p.selectedAudio === i,
+        }));
+    };
+
+    const subtitleMenuItems = (): ContextMenuItem[] => {
+        const items: ContextMenuItem[] = [{
             label: 'Off',
-            onSelect: () => { p.setSubTrack(-1); p.toast('Subtitles off'); },
+            onSelect: () => p.switchSubtitleTrack(-1),
+            tick: p.selectedSubtitle === -1,
             separatorBefore: true,
-        },
-        {
-            label: 'English',
-            onSelect: () => { p.setSubTrack(0); p.toast('Subtitles: English'); },
-        },
-        {
-            label: 'German',
-            onSelect: () => { p.setSubTrack(1); p.toast('Subtitles: German'); },
-        },
-    ];
+        }];
+
+        if (p.subtitleTracks.length === 0) {
+            items.push({
+                label: 'No subtitles',
+                disabled: true,
+                onSelect: () => { },
+            });
+        } else {
+            p.subtitleTracks.forEach((track, i) => {
+                const forced = track.isForced ? ' (forced)' : '';
+                items.push({
+                    label:
+                        formatTrackLabel(
+                            track.language,
+                            track.title,
+                            `Subtitle ${i + 1}`,
+                        ) + forced,
+                    onSelect: () => p.switchSubtitleTrack(i),
+                    tick: p.selectedSubtitle === i,
+                });
+            });
+        }
+
+        return items;
+    };
+    const videoMenuItems = (): ContextMenuItem[] => {
+        if (!p.videoTracks || p.videoTracks.length <= 1) {
+            return [{
+                label: 'Single video track',
+                disabled: true,
+                separatorBefore: true,
+                onSelect: () => { },
+            }];
+        }
+
+        return p.videoTracks.map((track, i) => ({
+            label: formatTrackLabel(track.language, track.title, `Video ${i + 1}`),
+            onSelect: () => p.switchVideoTrack(i),
+            tick: p.selectedVideo === i,
+        }));
+    };
 
     const entries: ContextMenuEntry[] = [
         {
@@ -189,6 +223,17 @@ export function VideoStage({ media }: { media: VideoMedia }) {
             items: subtitleMenuItems(),
         },
         { kind: 'separator' },
+        // Video track menu — only shown when > 1 track exists.
+        ...(p.videoTracks.length > 1 ? [
+            { kind: 'separator' } as const,
+            {
+                kind: 'submenu' as const,
+                label: 'Video track',
+                icon: 'film' as const,
+                items: videoMenuItems(),
+            },
+        ] : []),
+        { kind: 'separator' },
         {
             label: 'Aspect ratio', icon: 'grid',
             onSelect: () => {
@@ -207,8 +252,6 @@ export function VideoStage({ media }: { media: VideoMedia }) {
         p.settings.defaultAspect === 'fill' ? 'object-cover'
             : p.settings.defaultAspect === 'stretch' ? 'object-fill'
                 : 'object-contain';
-    //     playableUrl = media.url || undefined;
-    console.log("[-]Media A", playableUrl)
 
     return (
         <div className="p-0.5 flex flex-col gap-3.5 h-full min-h-0">
@@ -270,6 +313,7 @@ export function VideoStage({ media }: { media: VideoMedia }) {
                     <SubtitleOverlay
                         cues={null}
                         currentTime={p.pos * p.dur}
+                        src={p.selectedSubtitle >= 0 ? p.subtitleTracks[p.selectedSubtitle]?.url : null}
                     />
 
                     {/* Title overlay — subtle, doesn't block interaction. */}

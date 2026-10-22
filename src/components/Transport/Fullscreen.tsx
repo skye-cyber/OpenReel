@@ -137,8 +137,7 @@ export function FullscreenTransport({ visible, setVisible }: FullscreenProps) {
                     type="button"
                     onClick={() => p.setPlayingAnnounced(!p.playing)}
                     aria-label={p.playing ? 'Pause' : 'Play'}
-                    className="w-11 h-11 rounded-full bg-white/95 text-black flex items-center justify-center mx-2
-            transition-transform hover:scale-105 active:scale-95"
+                    className="w-11 h-11 rounded-full bg-white/95 text-black flex items-center justify-center mx-2 transition-transform hover:scale-105 active:scale-95"
                 >
                     <Icon name={p.playing ? 'pause' : 'play'} size={20} />
                 </button>
