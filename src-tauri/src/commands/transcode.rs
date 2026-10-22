@@ -11,6 +11,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
 use crate::http_server;
+use crate::paths;
 
 /// Max concurrent FFmpeg processes.
 const MAX_CONCURRENT: usize = 2;
@@ -228,9 +229,8 @@ async fn run_transcode(
                path, video_codec, audio_codec, duration, key
     );
 
-    let ffmpeg_path = app.path()
-    .resolve("openreel-ffmpeg", tauri::path::BaseDirectory::Resource)
-    .map_err(|e| format!("resolve ffmpeg: {e}"))?;
+    let ffmpeg_path = paths::sidecar_path("openreel-ffmpeg")?;
+    log::info!("ffmpeg resolved to: {}", ffmpeg_path.display());
 
     // ---------- Build argument list ----------
     let mut cmd = Command::new(&ffmpeg_path);
@@ -399,9 +399,8 @@ async fn extract_alternates(
     cancel_flag: &Arc<AtomicBool>,
     cache_dir: &PathBuf,
 ) -> Result<(), String> {
-    let ffmpeg_path = app.path()
-    .resolve("openreel-ffmpeg", tauri::path::BaseDirectory::Resource)
-    .map_err(|e| format!("resolve ffmpeg: {e}"))?;
+    let ffmpeg_path = paths::sidecar_path("openreel-ffmpeg")?;
+    log::info!("ffmpeg resolved to: {}", ffmpeg_path.display());
 
     // Partition streams by kind, preserving input order.
     let video_streams: Vec<&StreamInfo> = probe.streams.iter()
@@ -574,9 +573,10 @@ async fn probe_streams(
     app: &tauri::AppHandle,
     path: &str,
 ) -> Result<(f64, String, String), String> {
-    let ffprobe_path = app.path()
-    .resolve("openreel-ffprobe", tauri::path::BaseDirectory::Resource)
-    .map_err(|e| format!("resolve ffprobe: {e}"))?;
+    // Diagnostic: log what the app thinks its paths are.
+
+    let ffprobe_path = paths::sidecar_path("openreel-ffprobe")?;
+    log::info!("ffprobe resolved to: {}", ffprobe_path.display());
 
     let output = Command::new(&ffprobe_path)
     .args([
@@ -634,9 +634,8 @@ async fn probe_streams(
  * The extraction loop must skip is_attached_pic video streams — extracting them would produce a useless 400×250 one-frame MP4.
  */
 async fn probe_source(app: &tauri::AppHandle, path: &str) -> Result<ProbeResult, String> {
-    let ffprobe_path = app.path()
-    .resolve("openreel-ffprobe", tauri::path::BaseDirectory::Resource)
-    .map_err(|e| format!("resolve ffprobe: {e}"))?;
+    let ffprobe_path = paths::sidecar_path("openreel-ffprobe")?;
+    log::info!("ffprobe resolved to: {}", ffprobe_path.display());
 
     let output = Command::new(&ffprobe_path)
     .args([

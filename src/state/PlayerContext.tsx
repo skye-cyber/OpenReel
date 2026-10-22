@@ -28,7 +28,7 @@ import {
     librarymanager,
 } from '../lib/platform/library';
 import { labelForFolderPath, idForFolderPath } from '../lib/platform/fs';
-import type { TrackInfo } from '../types/mkvSource';
+import type { ExtractedTracks, TrackInfo } from '../types/mkvSource';
 import { CrashHandler } from '../lib/platform/system/Crash';
 import { isTauri, type SafeModeReason } from '../lib/platform/system/shared';
 import { PlatformTools } from '../lib/platform/system/tools';
@@ -37,7 +37,7 @@ import { savePrefs } from './persistSettings';
 import type { Folder } from '../types';
 import { listen } from '@tauri-apps/api/event';
 import type { MediaProbe } from '../types/media';
-import { computeNextIndex, computePrevIndex, formatTrackLabel, needsTranscode } from '../helpers/media';
+import { computeNextIndex, computePrevIndex, needsTranscode } from '../helpers/media';
 import { prepareTranscode } from '../lib/platform/transcode';
 import { toMediaUrl } from '../lib/mediaPath';
 import { invoke } from '@tauri-apps/api/core';
@@ -224,10 +224,10 @@ export function PlayerProvider({
         }, []);
 
         const setMedia = useCallback((m: Media | null) => {
-            setScene('empty');
             const prev = mediaRef.current;
             _setMedia(m);
             if (m === null) {
+                if (scene == "now") setScene('empty');
                 setTranscode(null);
                 setQueueIndex(-1);  // ← clear the index
                 _setPlaying(false);  // ← stop playback
@@ -486,7 +486,10 @@ export function PlayerProvider({
                 setPos(0);
                 setBuffered(0);
                 setSubTrack(-1);
-                setAudioTrack(0);
+                // Set tracks to default
+                setSelectedVideo(0);
+                setSelectedSubtitle(0);
+                setSelectedAudio(0);
                 setBuffering(false)
                 setQueueIndex(-1);
             }
@@ -675,6 +678,8 @@ export function PlayerProvider({
                 setAudioTracks(tracks.audio);
                 setSubtitleTracks(tracks.subtitles);
                 setVideoTracks(tracks.videos);
+                // Select first subtitle
+                setSelectedSubtitle(0)
             } catch (err) {
                 setTranscode(prev => prev && prev.mediaId === m.id
                     ? { ...prev, status: 'error', error: String(err) }
@@ -724,7 +729,7 @@ export function PlayerProvider({
             const currentTime = videoRef.current?.currentTime ?? 0;
 
             setQueue(prev => prev.map(q =>
-            q.id === item.id ? { ...q, media: { ...q.media, url: track.url } } : q
+                q.id === item.id ? { ...q, media: { ...q.media, url: track.url } } : q
             ));
 
             pendingSeekRef.current = currentTime;
@@ -752,7 +757,7 @@ export function PlayerProvider({
             const currentTime = videoRef.current?.currentTime ?? 0;
 
             setQueue(prev => prev.map(q =>
-            q.id === item.id ? { ...q, media: { ...q.media, url: track.url } } : q
+                q.id === item.id ? { ...q, media: { ...q.media, url: track.url } } : q
             ));
 
             pendingSeekRef.current = currentTime;

@@ -8,7 +8,7 @@ use std::{
 };
 use walkdir::WalkDir;
 use tauri::{ipc::Channel, Emitter, Manager};
-
+use crate::paths;
 /* ============================================================
  *  Constants
  *  ============================================================ */
@@ -339,10 +339,8 @@ pub async fn probe_media_file(
 ) -> Result<MediaProbe, String> {
     use tauri::Manager;
 
-    let ffprobe_path = app
-    .path()
-    .resolve("openreel-ffprobe", tauri::path::BaseDirectory::Resource)
-    .map_err(|e| format!("resolve ffprobe: {e}"))?;
+    let ffprobe_path = paths::sidecar_path("openreel-ffprobe")?;
+    log::info!("ffprobe resolved to: {}", ffprobe_path.display());
 
     let output = std::process::Command::new(&ffprobe_path)
     .args([

@@ -12,6 +12,11 @@ export interface TrackInfo {
     url: string;
 }
 
+export interface ExtractedTracks {
+    audio: TrackInfo[];
+    subtitles: TrackInfo[];
+    videos: TrackInfo[];
+}
 export interface AudioTrackInfo {
     /** Stream index in the source container (used for setAudioStreamIndex). */
     streamIndex: number;

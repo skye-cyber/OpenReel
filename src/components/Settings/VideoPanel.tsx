@@ -15,6 +15,7 @@ export function VideoPanel() {
 
     const probeHardwareDecoding = useCallback(async () => {
         try {
+            setProbe('run');
             const result = await PlatformTools.probeHardwareDecoding();
             setProbeResult(result)
             setProbe(result.available ? 'ok' : 'no' as Probe);
@@ -23,8 +24,9 @@ export function VideoPanel() {
         }
     }, [])
     useEffect(() => {
+        if(probeResult && probe) return
         probeHardwareDecoding()
-    })
+    }, [])
     return (
         <>
             <Group>Decoding</Group>
@@ -48,16 +50,7 @@ export function VideoPanel() {
                 title="Detected backend"
                 desc={probe ? `${probeResult?.backend} available` : 'No backend detected    '}
                 control={
-                    <Button size="sm" icon="refresh" onClick={async () => {
-                        setProbe('run');
-                        try {
-                            const result = await PlatformTools.probeHardwareDecoding();
-                            setProbeResult(result);
-                            setProbe(result.available ? 'ok' : 'no' as Probe);
-                        } catch {
-                            setProbe('no' as Probe);
-                        }
-                    }}>
+                    <Button size="sm" icon="refresh" onClick={async () => await probeHardwareDecoding()}>
                         Re-detect
                     </Button>
                 }

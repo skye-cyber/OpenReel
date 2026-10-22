@@ -36,16 +36,21 @@ export default function About() {
 
     useEffect(() => {
         void (async () => {
-            const [info, hw] = await Promise.all([
-                platformtools.getPlatformInfo(),
-                platformtools.probeHardwareDecoding(),
-            ]);
+            if (!platformInfo || !probe) {
 
-            setPlatformInfo(info);
-            setProbe(hw);
-            // Get app Version
-            const vs = await platformtools.getVersion()
-            setVersion(vs)
+                const [info, hw] = await Promise.all([
+                    platformtools.getPlatformInfo(),
+                    platformtools.probeHardwareDecoding(),
+                ]);
+
+                setPlatformInfo(info);
+                setProbe(hw);
+            }
+            if (!version) {
+                // Get app Version
+                const vs = await platformtools.getVersion()
+                setVersion(vs)
+            }
             // Only load when we navigate to diagnostic tab, and log was never loaded before
             if (tab !== 'diag' || logTail) return;
             void loadLog();
@@ -171,10 +176,10 @@ export default function About() {
                                     <span className="text-text-3 shrink-0">{l.timestamp}</span>
                                     <span
                                         className={`shrink-0 w-[46px] font-bold ${l.level.includes("ERROR")
-                                                ? "text-danger"
-                                                : l.level.includes("WARN")
-                                                    ? "text-warning"
-                                                    : "text-success"
+                                            ? "text-danger"
+                                            : l.level.includes("WARN")
+                                                ? "text-warning"
+                                                : "text-success"
                                             }`}
                                     >
                                         {l.level}

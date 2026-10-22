@@ -137,6 +137,29 @@ pub fn log_file(app: &AppHandle) -> PathBuf {
     logs_dir(app).join("openreel.log")
 }
 
+pub fn sidecar_path(name: &str) -> Result<PathBuf, String> {
+    let exe = std::env::current_exe()
+    .map_err(|e| format!("current_exe: {e}"))?;
+    let dir = exe.parent()
+    .ok_or_else(|| "executable has no parent directory".to_string())?;
+    let candidate = dir.join(name);
+    if candidate.exists() {
+        return Ok(candidate);
+    }
+    // Fallback for dev mode where current_exe might be in target/debug/deps/
+    // while the sidecar is in target/debug/.
+    if let Some(parent) = dir.parent() {
+        let alt = parent.join(name);
+        if alt.exists() {
+            return Ok(alt);
+        }
+    }
+    Err(format!(
+        "sidecar '{name}' not found next to executable ({}) or in its parent ({})",
+                dir.display(),
+                dir.parent().map(|p| p.display().to_string()).unwrap_or_default(),
+    ))
+}
 
 /// Ensure every directory the app writes to exists.
 ///
