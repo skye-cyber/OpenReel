@@ -315,15 +315,15 @@ pub async fn get_library_meta(
             has_index: true,
             total_count: index.total_count,
             folder_counts: index.folder_counts.clone(),
-                          scanned_at: index.scanned_at,
-                          scan_id: cache.scan_id.lock().ok().and_then(|s| s.clone()),
+            scanned_at: index.scanned_at,
+            scan_id: cache.scan_id.lock().ok().and_then(|s| s.clone()),
         }),
         None => Ok(LibraryMeta {
             has_index: false,
             total_count: 0,
             folder_counts: HashMap::new(),
-                   scanned_at: 0,
-                   scan_id: None,
+            scanned_at: 0,
+            scan_id: None,
         }),
     }
 }

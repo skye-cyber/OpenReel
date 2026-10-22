@@ -8,7 +8,7 @@ import type {
 } from "../types";
 import type { Settings, SettingKey, Cat } from "./settings";
 import type { Repository, RepositoryCatalog, AvailableEntry } from "./plugins";
-import type { AudioTrackInfo, SubtitleTrackInfo, TrackInfo } from "./mkvSource";
+import type { TrackInfo } from "./mkvSource";
 import type { SafeModeReason } from "../lib/platform/system/shared";
 import type { PersistedPrefs } from "./persists";
 import type { MediaProbe } from "./media";
@@ -108,6 +108,7 @@ export interface PlayerState {
 
     queue: QueueItem[];
     queueIndex: number;
+    addToQueue: (m: Media) => void;
     playQueueItem: (i: number) => void;
     nextItem: () => void;
     prevItem: () => void;

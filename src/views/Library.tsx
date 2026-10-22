@@ -12,6 +12,8 @@ import type { Filter, Row as RowType } from '../types/library';
 import { FILTERS, rowFromFile } from '../helpers/library';
 import { Row } from '../components/Library/Row';
 import { librarymanager } from '../lib/platform/library';
+import type { QueueItem } from '../types';
+import { PlatformTools } from '../lib/platform/system/tools';
 
 
 export default function Library() {
@@ -74,6 +76,11 @@ export default function Library() {
     const safeSel = Math.min(selected, Math.max(rows.length - 1, 0));
     const anyFilter = filter !== 'all' || q.trim().length > 0;
 
+    const appendToQueue = async (row: RowType) => {
+        const media = await mediaFromPath(row.path);
+        p.addToQueue(media);
+        p.toast(`Added "${row.title}" to queue`)
+    }
     //Context menu
     const entriesFor = (row: RowType): ContextMenuEntry[] => [
         {
@@ -82,10 +89,26 @@ export default function Library() {
                 p.playMedia(media);
             }
         },
-        { label: 'Play next', onSelect: () => p.toast(`"${row.title}" will play next`) },
-        { label: 'Add to queue', onSelect: () => p.toast(`Added "${row.title}" to queue`) },
+        {
+            label: 'Play next', onSelect: () => {
+                appendToQueue(row)
+                const index = p.queue.map((m: QueueItem, i: number) => {
+                    if (m.id === row.id) return i
+                })
+                if (index && typeof index === 'number') p.queueMoveNext(index)
+            }
+        },
+        {
+            label: 'Add to queue', onSelect: () => appendToQueue(row)
+        },
         { kind: 'separator' },
-        { label: 'Show in file manager', icon: 'folder', onSelect: () => p.toast('Opened file manager') },
+        {
+            label: 'Show in file manager', icon: 'folder', onSelect: async () => {
+                await PlatformTools.openPath(row.path);
+                p.toast('Opened file manager')
+
+            }
+        },
         {
             label: 'Copy path', icon: 'layers', onSelect: () => {
                 navigator.clipboard?.writeText(row.path).catch(() => { });
@@ -93,14 +116,13 @@ export default function Library() {
             },
         },
         { kind: 'separator' },
-        { label: 'Mark as watched', onSelect: () => p.toast(`Marked "${row.title}" as watched`) },
+        { label: 'Mark as watched', onSelect: () => { row.plays = 1; p.toast(`Marked "${row.title}" as watched`) } },
         { kind: 'separator' },
         {
             label: 'Remove from library', icon: 'trash', danger: true,
-            onSelect: () => p.toast(`Removed "${row.title}" from library`),
+            onSelect: () => p.toast(`[Fetaure] Pending implementation`),
         },
     ];
-
     // Header meta line
     const metaLine = p.scan?.inProgress
         ? `Scanning ${p.scan.currentFolder} · ${p.scan.itemsFound?.toLocaleString()}${p.scan.itemsExpected ? ` of ${p.scan.itemsExpected.toLocaleString()}` : ''

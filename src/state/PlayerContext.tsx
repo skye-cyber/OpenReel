@@ -913,6 +913,12 @@ export function PlayerProvider({
             }
         }, [hasMedia, toast, settings.snapshotFormat, media]);
 
+        const addToQueue = useCallback((m: Media) => {
+            // Pass if already in queue
+            if (queue.filter(m => m.id == m.id)[0]) return
+            const item: QueueItem = { id: m.id, media: m, addedAt: Date.now() };
+            setQueue(prev => [...prev, item]);
+        }, [])
 
         // syncs media when queueIndex changes
         useEffect(() => {
@@ -1274,6 +1280,7 @@ export function PlayerProvider({
         // Public scan actions:
         // PS1
         const startScan = useCallback(async () => {
+            // console.log("[SCAN REQ]:", scan)
             if (scan?.inProgress) return;
             await runScan(folders);
         }, [folders, scan, runScan]);
@@ -1554,7 +1561,7 @@ export function PlayerProvider({
             playing, setPlaying, syncPlayingFromElement, pos, dur, setPos, vol, setVol, muted, setMuted,
             speed, setSpeed, subTrack, setSubTrack,
             // queue
-            queue, setQueue, queueIndex, playQueueItem, nextItem, prevItem,
+            queue, setQueue, addToQueue, queueIndex, playQueueItem, nextItem, prevItem,
             // panels
             queueOpen, setQueueOpen, advanced, setAdvanced,
             // status
@@ -1627,7 +1634,7 @@ export function PlayerProvider({
             view,
             media, hasMedia,
             playing, pos, dur, vol, muted, speed, subTrack,
-            queue, queueIndex,
+            queue, addToQueue, queueIndex,
             queueOpen, advanced,
             buffering, offline,
             modal,

@@ -4,7 +4,7 @@ import type { Repository } from './plugins';
 import type { Folder } from '../types';
 
 export interface PersistedPrefs {
-    v: 1;
+    v: 1 | 0;
     themePref: ThemePref;
     vol: number;
     muted: boolean;

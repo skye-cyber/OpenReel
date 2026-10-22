@@ -12,5 +12,5 @@ export const DEFAULT_PREFS: PersistedPrefs = {
     libraryFolders: [],
     repositories: [],
     recentIds: [],
-    subTrack: 0,
+    subtitleTrack: 0,
 };

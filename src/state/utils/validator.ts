@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS, type SettingKey, type Settings, type SubtitleStyle } from '../../types/settings';
-import type { ThemePref } from '../../types';
+import type { Folder, ThemePref } from '../../types';
 import type { LibraryMeta } from '../../types';
 import { DEFAULT_PREFS } from './shared';
 import type { Repository } from '../../types/plugins';

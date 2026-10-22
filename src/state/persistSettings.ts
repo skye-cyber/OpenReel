@@ -20,7 +20,7 @@ function validate(raw: Partial<PersistedPrefs>): PersistedPrefs {
         libraryMeta: validateLibraryMeta(raw.libraryMeta),
         libraryFolders: validateLibraryFolders(raw.libraryFolders),
         repositories: validateRepositories(raw.repositories),
-        subTrack: isFiniteNumber(raw.subTrack) ? Math.round(raw.subTrack) : -1,
+        subtitleTrack: isFiniteNumber(raw.subtitleTrack) ? Math.round(raw.subtitleTrack) : -1,
         recentIds: validateRecentIds(raw.recentIds ?? []),
     };
 }

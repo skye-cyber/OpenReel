@@ -207,11 +207,10 @@ pub fn ensure_data_files(app: &AppHandle) -> std::io::Result<()> {
     .unwrap_or_else(|_| "[]".to_string());
 
     let content = format!(
-        "{{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {{}},\n  \"settings\": {{}},\n  \"libraryMeta\": {{ \"folders\": {}, \"itemCount\": 0, \"lastScanAt\": null }},\n  \"libraryFolders\": {},\n  \"repositories\": [],\n  \"subTrack\": -1\n,\n  \"subTrack\": []\n}}\n",
+        "{{\n  \"v\": 1,\n  \"themePref\": \"system\",\n  \"vol\": 0.72,\n  \"muted\": false,\n  \"speed\": 1,\n  \"plugins\": {{}},\n  \"settings\": {{}},\n  \"libraryMeta\": {{ \"folders\": {}, \"itemCount\": 0, \"lastScanAt\": null }},\n  \"libraryFolders\": {},\n  \"recentIds\": [],\n  \"repositories\": [],\n  \"subtitleTrack\": -1\n}}\n",
         folders.len(),
-                          folders_json,
+        folders_json,
     );
-
     ensure_json_file(
         &settings_file(app),
         &content,
