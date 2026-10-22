@@ -20,7 +20,7 @@ export default function About() {
     const { aboutTab: tab, setAboutTab: setTab, plugins, toast } = usePlayer();
     const [logTail, setLogTail] = useState<LogTail | null>(null);
     const [logLoading, setLogLoading] = useState(false);
-    const [version, setVersion] = useState<string>('-');
+    const [version, setVersion] = useState<string | null>(null);
 
     const loadLog = async () => {
         setLogLoading(true);
@@ -70,7 +70,7 @@ export default function About() {
     return (
         <div className="p-6.5 px-8 pb-10 max-w-[1180px] select-none">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">About OpenReel</h1>
-            <p className="text-[12.5px] text-text-2 mb-5.5">Version <span className='text-success font-semibold'>{version}</span> · OS <span className='text-accent'>{platformInfo?.os}</span></p>
+            <p className="text-[12.5px] text-text-2 mb-5.5">Version <span className='text-success font-semibold'>{version ? version : '-'}</span> · OS <span className='text-accent'>{platformInfo?.os}</span></p>
 
             <div className="flex gap-0.5 mb-6 border-b border-border">
                 {TABS.map(t => (
