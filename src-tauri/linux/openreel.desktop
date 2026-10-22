@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=OpenReel
+GenericName=Media Player
+Comment=Modular media player for Linux and other desktop platforms
+Exec=openreel %U
+TryExec=openreel
+Icon=openreel
+Terminal=false
+Categories=AudioVideo;Player;Video;Audio;Graphics;
+StartupNotify=true
+StartupWMClass=openreel
+MimeType=video/mp4;video/x-m4v;video/x-matroska;video/webm;video/quicktime;video/x-msvideo;video/x-ms-wmv;video/x-flv;video/ogg;video/mp2t;video/mpeg;video/3gpp;audio/mpeg;audio/mp4;audio/x-m4a;audio/flac;audio/x-flac;audio/wav;audio/x-wav;audio/wave;audio/ogg;audio/opus;audio/aac;audio/x-aac;audio/vorbis;audio/x-ms-wma;audio/aiff;audio/x-aiff;
+Keywords=video;audio;player;media;mkv;mp4;webm;flac;playback;
