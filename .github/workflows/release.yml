@@ -51,7 +51,7 @@ jobs:
               shell: bash
               run: |
                   rm -rf node_modules package-lock.json
-                  npm ci
+                  npm install
 
             - name: Fetch FFmpeg/FFprobe sidecars
               run: npm run prepare:sidecars
