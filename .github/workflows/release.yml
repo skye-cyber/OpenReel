@@ -48,7 +48,33 @@ jobs:
                     vainfo
 
             - name: Install frontend dependencies
-              run: npm ci
+              run: |
+                  rm -rf node_modules package-lock.json
+                  npm install
+
+            # - name: Ensure Tauri CLI native binding (Windows)
+            #   if: runner.os == 'Windows'
+            #   run: npm install @tauri-apps/cli-win32-x64-msvc --no-save
+            #
+            # - name: Ensure Tauri CLI native binding (macOS)
+            #   if: runner.os == 'macOS'
+            #   run: |
+            #       ARCH=$(uname -m)
+            #       if [ "$ARCH" = "arm64" ]; then
+            #           npm install @tauri-apps/cli-darwin-arm64 --no-save
+            #       else
+            #           npm install @tauri-apps/cli-darwin-x64 --no-save
+            #       fi
+            #
+            # - name: Ensure Tauri CLI native binding (Linux)
+            #   if: runner.os == 'Linux'
+            #   run: |
+            #       ARCH=$(uname -m)
+            #       if [ "$ARCH" = "aarch64" ]; then
+            #           npm install @tauri-apps/cli-linux-arm64-gnu --no-save
+            #       else
+            #           npm install @tauri-apps/cli-linux-x64-gnu --no-save
+            #       fi
 
             - name: Fetch FFmpeg/FFprobe sidecars
               run: npm run prepare:sidecars
