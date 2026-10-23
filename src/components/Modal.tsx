@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import type { ReactNode } from "react";
 import Icon from "../lib/Icons";
 import { Chip } from "./Chip";
 import { Button } from "./Button";
-import { useFocusTrap } from "../lib/useFocus";
+import { useFocusTrap } from "../hooks/useFocus";
 import type { IconName } from "../types";
 
 interface ModalProps {
@@ -59,12 +59,22 @@ interface InstallModalProps { onClose: () => void; onInstall: () => void }
 
 function InstallModal({ onClose, onInstall }: InstallModalProps) {
     const [ack, setAck] = useState(false);
+    const { settings, toast, safeMode } = usePlayer();
 
     const permissions: ReadonlyArray<{ icon: IconName; label: string; risk: 'High' | 'Medium' | 'Low' }> = [
         { icon: 'external', label: 'Connect to the internet', risk: 'High' },
         { icon: 'eye', label: 'Read the media files you open', risk: 'Medium' },
         { icon: 'layers', label: 'Store its own settings', risk: 'Low' },
     ];
+
+    const handleInstall = () => {
+        if(safeMode) return toast('System is in safe mode - restart to disable', 'err');
+        if (!settings.pluginsEnabled) {
+            toast('Plugins are turned off — enable them first', 'err');
+            return;
+        }
+        onInstall()
+    };
 
     return (
         <Modal onClose={onClose}>
@@ -120,7 +130,7 @@ function InstallModal({ onClose, onInstall }: InstallModalProps) {
 
             <div className="flex gap-2.5 justify-end p-3.5 px-[22px] bg-surface-2 border-t border-border">
                 <Button onClick={onClose}>Cancel</Button>
-                <Button variant="primary" onClick={onInstall} disabled={!ack}>Install anyway</Button>
+                <Button variant="primary" onClick={handleInstall} disabled={!ack}>Install anyway</Button>
             </div>
         </Modal>
     );
@@ -131,14 +141,6 @@ export function UninstallModal() {
     const { plugins, confirmUninstallId, setConfirmUninstallId, uninstallPlugin, toast } = usePlayer();
     const plugin = plugins.find(p => p.id === confirmUninstallId);
     const [removeData, setRemoveData] = useState(true);
-    //     const escapeRef = useRef<() => void>(() => { });
-
-    //     // Register with the escape stack.
-    //     useEffect(() => {
-    //         if (!plugin) return;
-    //         pushEscapeHandler('uninstall', () => setConfirmUninstallId(null));
-    //         return () => popEscapeHandler('uninstall');
-    //     }, [plugin, pushEscapeHandler, popEscapeHandler, setConfirmUninstallId]);
 
     if (!plugin) return null;
 

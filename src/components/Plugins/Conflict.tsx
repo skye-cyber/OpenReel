@@ -1,6 +1,6 @@
 import Icon from "../../lib/Icons";
 import { useMemo } from "react";
-import { usePlayer } from "../../state/PlayerContext";
+import { usePlayer } from "../../hooks/player";
 import type { Plugin } from "../../types";
 
 export function ConflictPanel({
@@ -27,7 +27,7 @@ export function ConflictPanel({
       <div className="flex items-start gap-3 mb-3">
         <Icon name="warn" size={16} className="text-warning shrink-0 mt-0.5" />
         <div className="flex-1 text-[12.5px] leading-relaxed text-text">
-          <b>Hook conflict.</b> {plugin.n} and {other.n} both provide{' '}
+          <b>Hook conflict.</b> {plugin.name} and {other.name} both provide{' '}
           <code className="font-mono text-[11.5px]">{plugin.hooks?.[0]}</code>.
           Only one can be active at a time.
         </div>
@@ -35,19 +35,19 @@ export function ConflictPanel({
 
       <div className="flex flex-col gap-2 mb-3">
         <ConflictOption
-          name={plugin.n}
+          name={plugin.name}
           active={pluginIsWinner}
           onActivate={() => {
             onResolve(plugin.id, other.id);
-            toast(`Activated ${plugin.n}`);
+            toast(`Activated ${plugin.name}`);
           }}
         />
         <ConflictOption
-          name={other.n}
+          name={other.name}
           active={otherIsWinner}
           onActivate={() => {
             onResolve(other.id, plugin.id);
-            toast(`Activated ${other.n}`);
+            toast(`Activated ${other.name}`);
           }}
         />
       </div>

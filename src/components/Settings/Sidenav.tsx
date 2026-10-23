@@ -6,7 +6,7 @@ export function SideNav({
     cat, setCat, disabled,
 }: { cat: Cat; setCat: (c: Cat) => void; disabled: boolean }) {
     return (
-        <div className="w-[186px] shrink-0 p-4.5 px-2.5 border-r border-border overflow-y-auto">
+        <div className="w-[186px] shrink-0 p-4.5 px-2.5 border-r border-border overflow-y-auto select-none">
             {CATS.map(c => {
                 const active = cat === c.id && !disabled;
                 return (
@@ -18,8 +18,7 @@ export function SideNav({
                     transition-colors
                     ${active
                                 ? 'bg-accent-soft text-text font-semibold'
-                                : 'text-text-2 hover:bg-hover hover:text-text'}
-            disabled:cursor-default`}
+                                : 'text-text-2 hover:bg-hover hover:text-text'} disabled:cursor-default`}
                     >
                         <Icon name={c.icon} size={15} className={active ? 'text-accent' : 'text-text-3'} />
                         {c.l}

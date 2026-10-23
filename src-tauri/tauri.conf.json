@@ -1,0 +1,137 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "openreel",
+  "version": "0.1.0",
+  "identifier": "com.skye.openreel",
+  "build": {
+    "frontendDist": "../build",
+    "devUrl": "http://localhost:4043",
+    "beforeDevCommand": "npm run dev:react",
+    "beforeBuildCommand": "npm run build:react"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "openreel",
+        "url": "../index.html",
+        "width": 800,
+        "height": 600,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; media-src 'self' http://127.0.0.1:* blob:; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*",
+      "assetProtocol": {
+      "enable": true,
+      "scope": [
+        "$RESOURCE/**",
+        "$APPDATA/**",
+        "$HOME/.openreel/**",
+        "$HOME/Videos/**/*",
+        "$HOME/Music/**/*",
+        "$HOME/Downloads/**/*",
+        "$HOME/Documents/**/*",
+        "$HOME/Desktop/**/*",
+        "/run/media/**/*",
+        "/media/**/*",
+        "/mnt/**/*"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "externalBin": ["binaries/openreel-ffmpeg", "binaries/openreel-ffprobe"],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/openreel.desktop",
+        "depends": ["vainfo"]
+      },
+      "rpm": {
+        "desktopTemplate": "linux/openreel.desktop",
+        "depends": ["vainfo"]
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["mp4", "m4v"],
+        "mimeType": "video/mp4",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["mkv"],
+        "mimeType": "video/x-matroska",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["webm"],
+        "mimeType": "video/webm",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["mov"],
+        "mimeType": "video/quicktime",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["avi"],
+        "mimeType": "video/x-msvideo",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["mp3"],
+        "mimeType": "audio/mpeg",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["flac"],
+        "mimeType": "audio/flac",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["wav"],
+        "mimeType": "audio/wav",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["m4a"],
+        "mimeType": "audio/mp4",
+        "role": "Viewer",
+        "rank": "Default"
+      },
+      {
+        "ext": ["ogg", "opus"],
+        "mimeType": "audio/ogg",
+        "role": "Viewer",
+        "rank": "Default"
+      }
+    ],
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    },
+    "resources": {
+      "../assets/": "assets/"
+    }
+  }
+}

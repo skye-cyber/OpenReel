@@ -1,0 +1,26 @@
+import type { Scene } from "../types";
+
+export const SCENES: Scene[] = [
+    { id: 'welcome', l: '1 · Welcome' },
+    // { id: 'empty', l: '2 · Nothing playing' },
+    { id: 'empty', l: '3 · Open file' },
+    { id: 'video', l: '4 · Video playback' },
+    { id: 'audio', l: '5 · Audio playback' },
+    { id: 'tracks', l: '6 · Track menus' },
+    { id: 'queue', l: '7 · Queue panel' },
+    { id: 'library', l: '8 · Media library' },
+    { id: 'settings', l: '9 · Settings' },
+    { id: 'plugins', l: '10 · Plugin manager' },
+    { id: 'install', l: '11 · Plugin install' },
+    { id: 'error', l: '12 · Unsupported media' },
+    { id: 'shortcuts', l: '13 · Shortcuts' },
+    { id: 'about', l: '14 · About & diagnostics' },
+    { id: 'loading', l: '15 · Loading / buffering' },
+    { id: 'offline', l: '16 · Offline stream' },
+    { id: 'error-missing', l: '12b · File missing' },
+    { id: 'error-permission', l: '12c · Permission denied' },
+    { id: 'error-corrupt', l: '12d · Corrupt file' },
+    { id: 'error-no-audio', l: '12e · No audio device' },
+    { id: 'error-video-out', l: '12f · Video output failure' },
+    { id: 'error-plugin', l: '12g · Plugin crashed' },
+];

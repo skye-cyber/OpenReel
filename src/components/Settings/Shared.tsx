@@ -25,7 +25,7 @@ export function Group({ children }: { children: React.ReactNode }) {
 
 
 
-export function Row({ title, desc, control, changed }: RowProps) {
+export function Row({ title, desc, control, changed, onReset }: RowProps) {
     return (
         <div className="flex items-center gap-6 py-3.5 border-b border-border last:border-b-0">
             <div className="flex-1 min-w-0">
@@ -33,9 +33,21 @@ export function Row({ title, desc, control, changed }: RowProps) {
                     {changed && <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />}
                     {title}
                 </div>
-                <div className="text-[11.5px] text-text-3 mt-0.5 leading-normal">{desc}</div>
+                <div className="text-[11.5px] text-text-3 mt-0.5 leading-normal">{desc as any}</div>
             </div>
-            <div className="shrink-0 flex items-center gap-2">{control}</div>
+            <div className="shrink-0 flex items-center gap-2">
+                {control}
+                {changed && onReset && (
+                    <button
+                        type="button"
+                        onClick={onReset}
+                        title="Reset to default"
+                        className="text-[11px] text-text-3 hover:text-text transition-colors"
+                    >
+                        Reset
+                    </button>
+                )}
+            </div>
         </div>
     );
 }

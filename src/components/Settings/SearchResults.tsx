@@ -8,8 +8,8 @@ import { CATS } from "./Shared";
 import Icon from "../../lib/Icons";
 
 export function SearchResults({
-    query, cat, setCat,
-}: { query: string; cat: Cat; setCat: (c: Cat) => void }) {
+    query, cat, setCat, setSearching
+}: { query: string; cat: Cat; setCat: (c: Cat) => void, setSearching: (s: boolean) => void }) {
     // The trick: render every panel into the DOM but hidden, so the browser's
     // own text search can't help us — we need our own index. For a spec-level
     // demo, we approximate by matching against category names and a small
@@ -79,9 +79,8 @@ export function SearchResults({
                 return (
                     <button
                         key={i}
-                        onClick={() => setCat(m.cat)}
-                        className="flex items-center gap-3 w-full text-left p-[10px_12px] rounded-md
-                border border-border bg-surface mb-1.5 transition-colors hover:border-border-2"
+                        onClick={() => { setSearching(false); setCat(m.cat); }}
+                        className="flex items-center gap-3 w-full text-left p-[10px_12px] rounded-md border border-border bg-surface mb-1.5 transition-colors hover:border-border-2"
                     >
                         <Icon name={c.icon} size={15} className="text-text-3 shrink-0" />
                         <div className="flex-1 min-w-0">

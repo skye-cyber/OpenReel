@@ -1,13 +1,36 @@
 {
   "name": "openreel",
   "private": true,
-  "version": "1.4.2",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:react": "vite",
+    "dev:tauri": "tauri dev",
+    "build": "npm run clean && npm run type-check && npm run build:all",
+    "build:all": "npm-run-all build:node build:react build:tauri",
+    "build:common": "tsc -p tsconfig.node.json",
+    "build:react": "vite build",
+    "build:tauri": "tauri build",
+    "package": "npm run build",
+    "clean": "rimraf dist",
+    "tauri": "tauri",
+    "cert:gen": "keytool -genkey -v -keystore ~/openreel-upload-keystore.jks -alias openreel -keyalg RSA -keysize 2048 -validity 10000",
+    "clean:mobile": "cargo clean -p openreel --release",
+    "prepare:sidecars": "node scripts/prepare-sidecars.js",
+    "prepare": "npm run prepare:sidecars"
   },
+  "keywords": [
+    "media player",
+    "music player",
+    "video player",
+    "media library"
+  ],
+  "author": {
+    "name": "Wambua Mwikya aka Skye",
+    "email": "swskye17@gmail.com"
+  },
+  "license": "GNU",
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "@tauri-apps/cli": "^2.11.4",
@@ -26,12 +49,13 @@
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
-    "@tauri-apps/plugin-fs": "^2.5.2",
-    "@tauri-apps/plugin-opener": "^2.5.5",
-    "@tauri-apps/plugin-shell": "^2.3.6",
-    "@tauri-apps/plugin-store": "^2.4.5",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-dialog": "^2.8.3",
+    "@tauri-apps/plugin-fs": "^2.7.1",
+    "@tauri-apps/plugin-opener": "^2.7.2",
+    "@tauri-apps/plugin-shell": "^2.5.0",
+    "@tauri-apps/plugin-store": "^2.5.0",
+    "libav-wasm": "^0.8.11",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.3.3"

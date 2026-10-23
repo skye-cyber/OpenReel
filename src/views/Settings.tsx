@@ -1,26 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Field } from '../components/Field';
 import { SideNav } from '../components/Settings/Sidenav';
 import { SearchResults } from '../components/Settings/SearchResults';
 import { Panel } from '../components/Settings/Panel';
-import type { Cat } from '../types/settings';
+import { usePlayer } from "../hooks/player";
 
-
-/* ============================================================
- *  Settings view
- *  ============================================================ */
 export default function Settings() {
-    const [cat, setCat] = useState<Cat>('video');
+    const { settingCat: cat, setSettingCat: setCat } = usePlayer();
     const [q, setQ] = useState('');
-
     const searching = q.trim().length > 0;
+    const [isSearching, setSearching] = useState<boolean>(searching)
+    useEffect(()=>{
+        setSearching(searching)
+    }, [q])
 
     return (
-        <div className="flex h-full min-h-0">
+        <div className="flex h-full min-h-0 select-none">
             <SideNav
                 cat={cat}
                 setCat={setCat}
-                disabled={searching}
+                disabled={false}
             />
 
             <div className="flex-1 min-w-0 overflow-y-auto">
@@ -30,11 +29,12 @@ export default function Settings() {
                         placeholder="Search settings…"
                         value={q}
                         onValue={setQ}
+                        className='select-text'
                     />
                 </div>
 
                 <div className="px-7.5 pb-15 max-w-[720px]">
-                    {searching ? <SearchResults query={q} cat={cat} setCat={setCat} /> : <Panel cat={cat} />}
+                    {isSearching ? <SearchResults query={q} cat={cat} setCat={setCat} setSearching={setSearching} /> : <Panel cat={cat} />}
                 </div>
             </div>
         </div>

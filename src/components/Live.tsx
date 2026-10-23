@@ -1,4 +1,4 @@
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 
 export function LiveRegion() {
     const { liveMessage } = usePlayer();

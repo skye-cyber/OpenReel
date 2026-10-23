@@ -8,6 +8,7 @@
    --font-sans      → font-sans
    ============================================================ */
 @theme {
+  --color-log:        #08090b;
   --color-app:        #0c0e11;
   --color-surface:    #13161a;
   --color-surface-2:  #181c21;
@@ -22,6 +23,7 @@
   --color-text:       #eceef1;
   --color-text-2:     #98a1ac;
   --color-text-3:     #69727d;
+  --color-text-log:   #282f38;
 
   --color-accent:     #e8875a;
   --color-accent-hi:  #f29c74;
@@ -53,6 +55,7 @@
 
 /* Light theme — same names, different values. */
 [data-theme="light"] {
+  --color-log: #f0f1f3;
   --color-app:        #f0f1f3;
   --color-surface:    #ffffff;
   --color-surface-2:  #f8f9fb;
@@ -65,6 +68,7 @@
   --color-border-3:   rgba(0,0,0,.22);
 
   --color-text:       #14171b;
+  --color-text-log:   #8f98a3;
   --color-text-2:     #5b6470;
   --color-text-3:     #8b939d;
 
@@ -119,6 +123,26 @@ html[data-motion="reduced"] .eq-bars i {
   animation: none;
   transform: none;
 }
+
+/* ---------- Density ---------- */
+/* Compact reduces row heights across the app. The selectors target every
+ row-like primitive we have. This is intentionally a global override —
+ a per-component approach would require threading density into every
+ component that renders a row, which is a much larger change for the
+ same visible result. */
+
+html[data-density="compact"] .tbl td { padding-top: 6px; padding-bottom: 6px; } /*Library, OpenView tables.*/
+html[data-density="compact"] .tbl th { padding-bottom: 6px; }
+
+html[data-density="compact"] .row-base { padding-top: 5px; padding-bottom: 5px; } /*Innexistent*/
+
+html[data-density="compact"] .nav-item { padding-top: 5px; padding-bottom: 5px; } /*Sidebar.*/
+
+html[data-density="compact"] .rec { padding-top: 5px; padding-bottom: 5px; } /*Empty state recents list. */
+
+html[data-density="compact"] .q-row { padding-top: 5px; padding-bottom: 5px; } /*Queue*/
+
+html[data-density="compact"] .pl-row { padding-top: 10px; padding-bottom: 10px; } /*Plugin list*/
 
 /* ============================================================
    BASE
@@ -217,6 +241,20 @@ html[data-motion="reduced"] .eq-bars i {
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 @keyframes eq { 0%,100% { transform: scaleY(.45); } 50% { transform: scaleY(1); } }
+/* Slow rotation (3s per turn). Used for ambient/loading indicators
+ *  where the motion should be gentle and not demand attention. */
+@keyframes spin-slow { from { transform: rotate(0deg); } to   { transform: rotate(360deg); }}
+
+/* Standard rotation (1s per turn). Used for buffering spinners and
+ *  active loading states — the default speed for any spinner that
+ *  means "working now". */
+@keyframes spin-standard { from { transform: rotate(0deg); } to   { transform: rotate(360deg); }}
+
+/* Fast rotation (0.4s per turn). Used for short-lived states where
+ *  the motion itself signals urgency or briefness — e.g. an icon
+ *  that spins once while an action completes. Should never be left
+ *  running indefinitely; it reads as anxiety, not progress. */
+@keyframes spin-fast { from { transform: rotate(0deg); } to   { transform: rotate(360deg); }}
 
 @utility animate-fade-up { animation: fade-up .22s cubic-bezier(.2,.7,.3,1); }
 @utility animate-slide-in { animation: slide-in .22s cubic-bezier(.2,.8,.3,1); }
@@ -226,3 +264,6 @@ html[data-motion="reduced"] .eq-bars i {
 @utility animate-toast-in { animation: toast-in .22s cubic-bezier(.2,.8,.3,1); }
 @utility animate-spin-slow { animation: spin .7s linear infinite; }
 @utility animate-pulse-dot { animation: pulse 1.6s infinite; }
+@utility animate-spin-slow { animation: spin-slow 3s linear infinite; }
+@utility animate-spin-standard { animation: spin-standard 1s linear infinite; }
+@utility animate-spin-fast { animation: spin-fast 0.4s linear infinite; }

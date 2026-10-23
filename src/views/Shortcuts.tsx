@@ -74,7 +74,7 @@ export default function Shortcuts() {
     const total = filtered.reduce((n, g) => n + g.rows.length, 0);
 
     return (
-        <div className="p-6.5 px-8 pb-10 max-w-[1180px]">
+        <div className="p-6.5 px-8 pb-10 max-w-[1180px] select-none">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Keyboard shortcuts</h1>
             <p className="text-[12.5px] text-text-2 mb-5.5">
                 Shortcuts are currently fixed. Press a key combination to find it in the list.

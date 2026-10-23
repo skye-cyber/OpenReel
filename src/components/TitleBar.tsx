@@ -1,16 +1,16 @@
 import { useState } from "react";
 import Icon from "../lib/Icons";
 import { Menu, MenuItem, MenuHead } from "../components/Menu";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import { IconButton } from "../components/Button";
-import { SCENES } from "../data/mock";
+import { SCENES } from "../lib/Scene";
 
 export function TitleBar() {
-    const { media, theme, setThemePref, scene, applyScene } = usePlayer();
+    const { media, theme, setThemePref, scene, applyScene, safeMode, setView } = usePlayer();
     const [open, setOpen] = useState(false);
 
     return (
-        <div className="h-[42px] shrink-0 flex items-center gap-3.5 px-3.5 bg-surface border-b border-border relative z-60 select-none">
+        <div className="h-[42px] shrink-0 flex items-center gap-3.5 px-3.5 bg-surface border-b border-border relative z-60 select-none select-none">
             <div className="flex gap-2 items-center">
                 {[0, 1, 2].map(i => (
                     <span
@@ -32,13 +32,25 @@ export function TitleBar() {
                     </>
                 )}
             </div>
-
+            {safeMode && (
+                <>
+                    <span className="w-px h-3.5 bg-border-2" />
+                    <button
+                        onClick={() => setView('plugins')}
+                        className="flex items-center gap-1.5 h-[22px] px-2 rounded-sm bg-warning-dim border border-[rgba(217,161,59,.3)] text-warning text-[11px] font-semibold hover:bg-[rgba(217,161,59,.2)] transition-colors"
+                        title="Plugins are disabled. Click to open plugin settings."
+                        aria-label="Safe mode is active. Open plugin settings."
+                    >
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                        Safe mode
+                    </button>
+                </>
+            )}
             <div className="flex items-center gap-1.5">
                 <div className="relative inline-flex">
                     <button
                         onClick={() => setOpen(o => !o)}
-                        className="flex items-center gap-1.5 h-[26px] px-2.5 rounded-full border border-dashed border-border-3
-        text-[11.5px] text-text-3 transition-all hover:text-text hover:border-solid hover:border-text-3"
+                        className="flex items-center gap-1.5 h-[26px] px-2.5 rounded-full border border-dashed border-border-3 text-[11.5px] text-text-3 transition-all hover:text-text hover:border-solid hover:border-text-3"
                     >
                         <Icon name="layers" size={13} /> Screens
                     </button>

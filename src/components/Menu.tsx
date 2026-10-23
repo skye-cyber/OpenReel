@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import Icon from "../lib/Icons";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 
 interface MenuItemProps {
     children: ReactNode;
@@ -120,7 +120,6 @@ export function Menu({ open, onClose, children, dir = 'up', align = 'right', cla
 
     const posCls = dir === 'down' ? 'top-[calc(100%+8px)]' : 'bottom-[calc(100%+10px)]';
     const alignCls = align === 'right' ? 'right-0' : 'left-0';
-
     return (
         <div
             ref={ref}
@@ -138,8 +137,7 @@ export function MenuItem({ children, onClick, disabled, tick, sub }: MenuItemPro
             type="button"
             onClick={onClick}
             disabled={disabled}
-            className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-sm text-[12.5px] text-text
-        text-left transition-colors hover:bg-hover disabled:opacity-40 disabled:pointer-events-none"
+            className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-sm text-[12.5px] text-text text-left transition-colors hover:bg-hover disabled:opacity-40 disabled:pointer-events-none"
         >
             {children}
             {sub && <span className="text-[11px] text-text-3 ml-auto pl-3.5">{sub}</span>}

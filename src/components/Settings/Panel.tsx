@@ -1,5 +1,5 @@
 import { VideoPanel } from "./VideoPanel";
-import { SubtitlesPanel } from "./SubtitlePanel";
+import { SubtitlePanel } from "./SubtitlePanel";
 import { LibraryPanel } from "./LibraryPanel";
 import { AdvancedPanel } from "./AdvancedPanel";
 import { PrivacyPanel } from "./PrivacyPanel";
@@ -15,7 +15,7 @@ export function Panel({ cat }: { cat: Cat }) {
         case 'playback': return <PlaybackPanel />;
         case 'video': return <VideoPanel />;
         case 'audio': return <AudioPanel />;
-        case 'subtitles': return <SubtitlesPanel />;
+        case 'subtitles': return <SubtitlePanel />;
         case 'appearance': return <AppearancePanel />;
         case 'library': return <LibraryPanel />;
         case 'plugins': return <PluginsPanel />;

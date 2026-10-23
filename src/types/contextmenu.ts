@@ -1,0 +1,43 @@
+export interface ContextMenuItem {
+    kind?: 'item';
+    label: string;
+    icon?: keyof typeof import('../lib/Icons').paths;
+    shortcut?: string;
+    danger?: boolean;
+    disabled?: boolean;
+    separatorBefore?: boolean;
+    onSelect: () => void;
+    tick?: boolean;
+}
+
+export interface ContextMenuSubmenu {
+    kind: 'submenu';
+    label: string;
+    icon?: keyof typeof import('../lib/Icons').paths;
+    separatorBefore?: boolean;
+    items: ContextMenuItem[];
+    className?: string;
+}
+
+export interface ContextMenuSeparator {
+    kind: 'separator';
+}
+
+export type ContextMenuEntry = ContextMenuItem | ContextMenuSubmenu | ContextMenuSeparator;
+
+export interface ContextMenuPosition {
+    x: number;
+    y: number;
+}
+
+
+export interface ContextMenuProps {
+    position: ContextMenuPosition;
+    entries: ContextMenuEntry[];
+    onClose: () => void;
+    className?: string;
+}
+
+export type ContextMenuPayload = unknown;
+
+export const FOCUSABLE = 'button:not([disabled]), [tabindex]:not([tabindex="-1"])';

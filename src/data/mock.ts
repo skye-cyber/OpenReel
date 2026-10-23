@@ -1,19 +1,22 @@
 import type {
     AudioMedia, ErrorMedia, LibraryRow, OpenFileRow, Plugin,
-    QueueItem, RecentItem, Scene, VideoMedia, PluginPermissionId,
-    PluginPermission
+    QueueItem, RecentItem, VideoMedia
 } from '../types';
 
 export const VIDEO: VideoMedia = {
     kind: 'video',
-    title: 'lecture-04.mkv',
-    sub: 'Chapter 3 · Encoding',
-    dur: 2911,
-    codec: 'MKV · H.264 · AC-3 5.1 · 1080p',
+    id: 'The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
+    url: '/home/skye/Videos/The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
+    title: 'The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv',
+    sub: 'The_Lincoln_Lawyer_S01E08',
+    dur: 0,          // real duration comes from durationchange
+    codec: 'Container MKV · Video HEVC · Audio AC-3 · 272.6 MB',
 };
 
 export const AUDIO: AudioMedia = {
     kind: 'audio',
+    id: 'field-recording-07',
+    url: '/media/Empty Bed.mp3',
     title: 'Field Recording No. 7',
     artist: 'Anna Selv',
     album: 'Coastal Studies',
@@ -24,12 +27,72 @@ export const AUDIO: AudioMedia = {
 
 export const ERROR_MEDIA: ErrorMedia = {
     kind: 'error',
+    id: '~/Videos/Archive/archive-old.mkv',
     title: 'archive-old.mkv',
     dur: 0,
+    reason: 'unsupported-codec',
+    detail: 'vc1',
     codec: 'Container MKV · Video VC-1 · Audio AC-3 · 1.2 GB',
 };
 
+export const ERROR_MISSING: ErrorMedia = {
+    kind: 'error',
+    id: '~/Videos/Old/gone.mkv',
+    title: 'gone.mkv',
+    dur: 0,
+    reason: 'file-missing',
+    codec: '',
+};
+
+export const ERROR_PERMISSION: ErrorMedia = {
+    kind: 'error',
+    id: '/root/private.mkv',
+    title: 'private.mkv',
+    dur: 0,
+    reason: 'permission-denied',
+    detail: 'EACCES',
+    codec: '',
+};
+
+export const ERROR_CORRUPT: ErrorMedia = {
+    kind: 'error',
+    id: '~/Videos/partial.mkv',
+    title: 'partial.mkv',
+    dur: 0,
+    reason: 'corrupt-file',
+    codec: 'Matroska — truncated at 42%',
+};
+
+export const ERROR_NO_AUDIO: ErrorMedia = {
+    kind: 'error',
+    id: 'no-audio-device',
+    title: 'Audio output',
+    dur: 0,
+    reason: 'no-audio-device',
+    codec: '',
+};
+
+export const ERROR_VIDEO_OUT: ErrorMedia = {
+    kind: 'error',
+    id: 'video-output-failure',
+    title: 'Video output',
+    dur: 0,
+    reason: 'video-output-failure',
+    codec: '',
+};
+
+export const ERROR_PLUGIN: ErrorMedia = {
+    kind: 'error',
+    id: 'plugin-crashed:subtitle',
+    title: 'Plugin failure',
+    dur: 0,
+    reason: 'plugin-crashed',
+    pluginName: 'subtitle',   // plugin id, not display name
+    codec: 'missing symbol libsubtitle_init',
+};
+
 export const RECENTS: RecentItem[] = [
+    { n: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', p: '/home/skye/Videos/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—', k: 'video' },
     { n: 'lecture-04.mkv', p: '~/Videos/Course', d: '48:31', k: 'video' },
     { n: 'field-recording-07.flac', p: '~/Music/Coastal Studies', d: '12:48', k: 'audio' },
     { n: 'seminar-02.mkv', p: '~/Videos/Course', d: '31:07', k: 'video' },
@@ -37,6 +100,7 @@ export const RECENTS: RecentItem[] = [
 ];
 
 export const OPEN_FILES: OpenFileRow[] = [
+    { n: 'Screencast_20260920_150034.webm', p: 'Screencasts', t: 'WebM', s: '—', m: '20 Sep 2026', d: '—', k: 'video' },
     { n: 'lecture-04.mkv', p: 'Course / Week 3', t: 'Matroska', s: '1.24 GB', m: '2 Sep 2026', d: '48:31', k: 'video' },
     { n: 'seminar-02.mkv', p: 'Course / Week 3', t: 'Matroska', s: '812 MB', m: '2 Sep 2026', d: '31:07', k: 'video' },
     { n: 'workshop-audio.wav', p: 'Course / Week 3', t: 'WAVE', s: '204 MB', m: '1 Sep 2026', d: '18:02', k: 'audio' },
@@ -45,6 +109,7 @@ export const OPEN_FILES: OpenFileRow[] = [
 ];
 
 export const LIBRARY: LibraryRow[] = [
+    { t: 'Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', p: '/home/skye/Videos/Faouzia_-_BIRTHDAY__Official_Music_Video_(720p).mp4', d: '—', f: 'WEBM', a: '20 Sep 2026', pl: 0 },
     { t: 'Lecture 04 — Encoding Theory', p: '~/Videos/Course/lecture-04.mkv', d: '48:31', f: 'MKV', a: '2 Sep 2026', pl: 12 },
     { t: 'Seminar 02 — Colour Spaces', p: '~/Videos/Course/seminar-02.mkv', d: '31:07', f: 'MKV', a: '2 Sep 2026', pl: 9 },
     { t: 'Interview — draft cut', p: '~/Desktop/interview-draft.mp4', d: '22:15', f: 'MP4', a: '30 Aug 2026', pl: 3 },
@@ -56,6 +121,7 @@ export const LIBRARY: LibraryRow[] = [
 ];
 
 export const QUEUE: QueueItem[] = [
+    { n: 'The_Lincoln_Lawyer_S01E08_The_Magic_Bullet_Redux_720p_NF_WEB_DL.mkv', d: '—' },
     { n: 'lecture-04.mkv', d: '48:31', on: true },
     { n: 'seminar-02.mkv', d: '31:07' },
     { n: 'interview-draft.mp4', d: '22:15' },
@@ -66,18 +132,18 @@ export const QUEUE: QueueItem[] = [
 export const PLUGINS: Plugin[] = [
     {
         id: 'subtitle',
-        n: 'Subtitle Finder',
-        p: 'OpenReel Community',
-        v: '2.1.0',
-        c: 'Subtitle provider',
-        d: 'Searches configured providers for matching subtitles and loads them into the current session.',
+        name: 'Subtitle Finder',
+        provider: 'OpenReel Community',
+        version: '2.1.0',
+        category: 'Subtitle provider',
+        description: 'Searches configured providers for matching subtitles and loads them into the current session.',
         long:
             'Subtitle Finder searches a set of subtitle providers using the current file\'s hash, ' +
             'name, and duration, and offers the best matches. It only reads file metadata — it does ' +
             'not open your media files themselves — and it only reaches the network when you ask it to.',
         homepage: 'https://plugins.example.org/subtitle-finder',
         on: true,
-        st: 'ok',
+        status: 'ok',
         signed: true,
         apiVersion: '1.4',
         size: '412 KB',
@@ -93,18 +159,18 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'spec',
-        n: 'Spectrum Overlay',
-        p: 'A. Reyes',
-        v: '0.9.3',
-        c: 'Visualiser',
-        d: 'Draws an audio spectrum over the video surface or the audio stage.',
+        name: 'Spectrum Overlay',
+        provider: 'A. Reyes',
+        version: '0.9.3',
+        category: 'Visualiser',
+        description: 'Draws an audio spectrum over the video surface or the audio stage.',
         long:
             'Spectrum Overlay renders a live frequency spectrum using the current audio stream. ' +
             'It can draw into the video surface or, in audio-only playback, replace the artwork ' +
             'area. It does not modify the audio itself.',
         homepage: 'https://github.com/areyes/spectrum-overlay',
         on: false,
-        st: 'conflict',
+        status: 'conflict',
         signed: false,
         apiVersion: '1.3',
         size: '188 KB',
@@ -119,11 +185,11 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'viz',
-        n: 'OpenReel Visualizer',
-        p: 'OpenReel',
-        v: '1.4.0',
-        c: 'Visualiser',
-        d: 'Audio-reactive visualisations for audio-only playback.',
+        name: 'OpenReel Visualizer',
+        provider: 'OpenReel',
+        version: '1.4.0',
+        category: 'Visualiser',
+        description: 'Audio-reactive visualisations for audio-only playback.',
         long:
             'The bundled visualiser ships with OpenReel and provides several audio-reactive ' +
             'scenes for audio-only playback. It reads the audio stream as it plays and draws into ' +
@@ -131,7 +197,7 @@ export const PLUGINS: Plugin[] = [
             'to static artwork.',
         homepage: 'https://openreel.example.org/docs/visualizer',
         on: true,
-        st: 'ok',
+        status: 'ok',
         signed: true,
         apiVersion: '1.4',
         size: '624 KB',
@@ -146,16 +212,16 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'av1',
-        n: 'AV1 Decoder Pack',
-        p: 'vendor-x',
-        v: '1.0.4',
-        c: 'Codec',
-        d: 'Provides an additional AV1 decoding path for software playback.',
+        name: 'AV1 Decoder Pack',
+        provider: 'vendor-x',
+        version: '1.0.4',
+        category: 'Codec',
+        description: 'Provides an additional AV1 decoding path for software playback.',
         long:
             'An alternative AV1 decoder for systems where hardware decoding is unavailable or ' +
             'unreliable. It reads media files you open and does not contact the network.',
         on: false,
-        st: 'failed',
+        status: 'failed',
         err: 'missing symbol libav1_decode_init',
         signed: true,
         apiVersion: '1.2',
@@ -171,16 +237,16 @@ export const PLUGINS: Plugin[] = [
     },
     {
         id: 'rec',
-        n: 'Stream Recorder',
-        p: 'third-party',
-        v: '3.0.0',
-        c: 'Capture',
-        d: 'Records network streams to disk while you watch.',
+        name: 'Stream Recorder',
+        provider: 'third-party',
+        version: '3.0.0',
+        category: 'Capture',
+        description: 'Records network streams to disk while you watch.',
         long:
             'Stream Recorder captures network streams to a file while you watch. It reads the ' +
             'stream data and writes to your disk.',
         on: false,
-        st: 'incompat',
+        status: 'incompat',
         err: 'Requires OpenReel 1.5 or newer (you have 1.4.2)',
         signed: false,
         apiVersion: '1.5',
@@ -194,65 +260,3 @@ export const PLUGINS: Plugin[] = [
     },
 ];
 
-/**
- * Permission vocabulary — shared between the install confirmation and the
- * installed-plugin detail view. The "grant" text is used at install time
- * ("will be able to"); the "held" text is used afterwards ("can").
- */
-export const PLUGIN_PERMISSIONS: Record<PluginPermissionId, PluginPermission> = {
-    network: {
-        id: 'network',
-        grant: 'Connect to the internet',
-        held: 'Can connect to the internet',
-        risk: 'High',
-    },
-    'read-media': {
-        id: 'read-media',
-        grant: 'Read the media files you open',
-        held: 'Can read the media files you open',
-        risk: 'Medium',
-    },
-    'write-config': {
-        id: 'write-config',
-        grant: 'Store its own settings',
-        held: 'Can store its own settings',
-        risk: 'Low',
-    },
-    spawn: {
-        id: 'spawn',
-        grant: 'Run other programs on your computer',
-        held: 'Can run other programs on your computer',
-        risk: 'High',
-    },
-    'audio-output': {
-        id: 'audio-output',
-        grant: 'Read the audio stream while it plays',
-        held: 'Can read the audio stream while it plays',
-        risk: 'Medium',
-    },
-    'draw-overlay': {
-        id: 'draw-overlay',
-        grant: 'Draw its own graphics on top of the video surface',
-        held: 'Can draw on top of the video surface',
-        risk: 'Medium',
-    },
-};
-
-export const SCENES: Scene[] = [
-    { id: 'welcome', l: '1 · Welcome' },
-    { id: 'empty', l: '2 · Nothing playing' },
-    { id: 'open', l: '3 · Open file' },
-    { id: 'video', l: '4 · Video playback' },
-    { id: 'audio', l: '5 · Audio playback' },
-    { id: 'tracks', l: '6 · Track menus' },
-    { id: 'queue', l: '7 · Queue panel' },
-    { id: 'library', l: '8 · Media library' },
-    { id: 'settings', l: '9 · Settings' },
-    { id: 'plugins', l: '10 · Plugin manager' },
-    { id: 'install', l: '11 · Plugin install' },
-    { id: 'error', l: '12 · Unsupported media' },
-    { id: 'shortcuts', l: '13 · Shortcuts' },
-    { id: 'about', l: '14 · About & diagnostics' },
-    { id: 'loading', l: '15 · Loading / buffering' },
-    { id: 'offline', l: '16 · Offline stream' },
-];

@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<!--<html lang="en" data-theme="dark" data-density data-motion="normal">-->
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -7,6 +8,41 @@
   </head>
   <body class="bg-app text-text antialiased overflow-hidden">
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var prefsRaw = localStorage.getItem('openreel.prefs.v1');
+          var prefs = prefsRaw ? JSON.parse(prefsRaw) : null;
+
+          /* Theme */
+          var themePref = prefs && prefs.themePref ? prefs.themePref : 'system';
+          var theme;
+          if (themePref === 'system') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } else {
+            theme = themePref;
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+
+          /* Motion */
+          var settings = prefs && prefs.settings ? prefs.settings : {};
+          var motionPref = settings.reducedMotion || 'system';
+          var reduced;
+          if (motionPref === 'system') {
+            reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          } else {
+            reduced = motionPref === 'on';
+          }
+          document.documentElement.setAttribute('data-motion', reduced ? 'reduced' : 'normal');
+
+          /* Density */
+          var density = settings.density || 'comfortable';
+          document.documentElement.setAttribute('data-density', density);
+        } catch (e) {
+          /* Storage blocked or malformed — defaults from index.html take over. */
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

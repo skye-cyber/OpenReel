@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import Icon from "../../lib/Icons";
 import { Button } from "../Button";
-import { usePlayer } from "../../state/PlayerContext";
+import { usePlayer } from "../../hooks/player";
 import { IconButton } from "../Button";
 import { Field } from "../Field";
 import { PluginRow } from "./Row";
+import { EmptyState } from "./Empty";
+import { Available } from "./Available";
 
 type Filter = 'all' | 'enabled' | 'disabled' | 'attention';
 
@@ -16,25 +18,30 @@ const FILTERS: ReadonlyArray<{ id: Filter; l: string }> = [
 ];
 
 export function PluginsList() {
-    const { plugins, setModal, setPluginEnabled, selectPlugin } = usePlayer();
+    const {
+        plugins, setModal, setPluginEnabled,
+        selectPlugin, settings, setSetting,
+        setSettingCat, setView, safeMode,
+        exitSafeModeAndReload,
+    } = usePlayer();
     const [q, setQ] = useState('');
     const [filter, setFilter] = useState<Filter>('all');
 
     const installed = useMemo(() => {
         const query = q.trim().toLowerCase();
         return plugins.filter(p => {
-            if (query && !p.n.toLowerCase().includes(query)) return false;
+            if (query && !p.name.toLowerCase().includes(query)) return false;
 
             switch (filter) {
                 case 'enabled':
-                    return p.st === 'ok' && p.on;
+                    return p.status === 'ok' && p.on;
 
                 case 'disabled':
                     // "Disabled" means: not currently running AND not blocked by
                     // a problem the user hasn't addressed. A failed or conflicting
                     // plugin that's turned off is still "needs attention" — the
                     // user has an outstanding decision — so it doesn't belong here.
-                    return !p.on && p.st === 'ok';
+                    return !p.on && p.status === 'ok';
 
                 case 'attention':
                     // Anything the user needs to act on: a conflict, a load
@@ -42,7 +49,7 @@ export function PluginsList() {
                     // OK but is somehow off when the user expected it on.
                     // (The last case doesn't occur in the current data, but the
                     // predicate is written so it stays true if it ever does.)
-                    return p.st === 'conflict' || p.st === 'failed' || p.st === 'incompat';
+                    return p.status === 'conflict' || p.status === 'failed' || p.status === 'incompat';
 
                 case 'all':
                 default:
@@ -53,13 +60,56 @@ export function PluginsList() {
 
     const counts = useMemo(() => ({
         all: plugins.length,
-        enabled: plugins.filter(p => p.st === 'ok' && p.on).length,
-        disabled: plugins.filter(p => !p.on && p.st === 'ok').length,
-        attention: plugins.filter(p => p.st !== 'ok').length,
+        enabled: plugins.filter(p => p.status === 'ok' && p.on).length,
+        disabled: plugins.filter(p => !p.on && p.status === 'ok').length,
+        attention: plugins.filter(p => p.status !== 'ok').length,
     }), [plugins]);
 
+    if (!settings.pluginsEnabled || safeMode) {
+        const reason = safeMode
+            ? 'Safe mode is active — plugins are disabled to prevent another crash.'
+            : 'Plugins are turned off in Settings.';
+        return (
+            <div className="p-6.5 px-8 pb-10 max-w-[720px] select-none">
+                <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Plugins</h1>
+                <p className="text-[12.5px] text-text-2 mb-5.5">
+                    Optional extensions. OpenReel plays media without any of them.
+                </p>
+
+                <div className="flex items-start gap-3 p-[14px_16px] rounded-md text-[12.5px]
+                leading-relaxed bg-surface-2 border border-border mb-4.5">
+                    <Icon name={safeMode ? 'warn' : 'plug'} size={16} className={`${safeMode ? 'text-warning' : 'text-text-3'} shrink-0 mt-0.5`} />
+                    <div className="flex-1">
+                        <div className="font-semibold mb-1">
+                            {safeMode ? 'Safe mode is active' : 'Plugins are turned off'}
+                        </div>
+                        <div className="text-text-2">{reason}</div>
+                    </div>
+                    {safeMode ? (
+                        <Button size="sm" onClick={exitSafeModeAndReload}>Restart normally</Button>
+                    ) : (
+                        <Button size="sm" onClick={() => setSetting('pluginsEnabled', true)}>
+                            Turn on plugins
+                        </Button>
+                    )}
+                </div>
+
+                {!safeMode && (
+                    <div className="text-[11.5px] text-text-3">
+                        Manage this setting in <button
+                            onClick={() => {
+                                setView('settings')
+                                setSettingCat('plugins')
+                            }}
+                            className="text-accent hover:underline"
+                        >Settings → Plugins</button>.
+                    </div>
+                )}
+            </div>
+        );
+    }
     return (
-        <div className="p-6.5 px-8 pb-10 max-w-[1180px] h-[90%] overflow-y-auto">
+        <div className="p-6.5 px-8 pb-10 max-w-[1180px] h-[90%] overflow-y-auto select-none">
             <h1 className="text-[19px] font-[650] tracking-[-.015em] mb-0.5">Plugins</h1>
             <p className="text-[12.5px] text-text-2 mb-5.5">
                 Optional extensions. OpenReel plays media without any of them.
@@ -93,7 +143,7 @@ export function PluginsList() {
                             onClick={() => setFilter(f.id)}
                             aria-pressed={active}
                             className={`h-7 px-3 rounded-[20px] border text-[12px] transition-all
-          ${active
+                            ${active
                                     ? 'bg-accent-dim border-transparent text-accent font-semibold'
                                     : 'bg-surface border-border-2 text-text-2 hover:border-border-3 hover:text-text'}`}
                         >
@@ -130,36 +180,9 @@ export function PluginsList() {
             )}
 
             <div className="mt-5.5">
-                <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 mb-2.5">
-                    Available · 0 sources configured
-                </div>
-                <div className="flex items-center gap-3 rounded-md p-[10px_14px] text-[12px] leading-relaxed
-    bg-surface-2 border border-border text-text-2">
-                    <Icon name="external" size={16} className="text-text-3" />
-                    <div className="flex-1">No plugin repositories are configured. Add one to browse available plugins.</div>
-                    <Button size="sm">Add repository…</Button>
-                </div>
+                <Available query={q} />
             </div>
         </div>
     );
 }
 
-function EmptyState({ query, filter }: { query: string; filter: Filter }) {
-    const hasQuery = query.trim().length > 0;
-    const hasFilter = filter !== 'all';
-
-    const message = (() => {
-        if (hasQuery && hasFilter) return <>No plugins match “{query}” in this filter.</>;
-        if (hasQuery) return <>No plugins match “{query}”.</>;
-        if (filter === 'enabled') return <>No plugins are currently enabled.</>;
-        if (filter === 'disabled') return <>No plugins are installed but disabled.</>;
-        if (filter === 'attention') return <>Nothing needs your attention. All good.</>;
-        return <>No plugins installed.</>;
-    })();
-
-    return (
-        <div className="py-10 text-center text-[12.5px] text-text-2">
-            {message}
-        </div>
-    );
-}

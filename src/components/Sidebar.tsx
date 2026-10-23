@@ -1,28 +1,39 @@
 import Icon from "../lib/Icons";
-import { usePlayer } from "../state/PlayerContext";
+import { usePlayer } from "../hooks/player";
 import type { ViewId, IconName } from "../types";
+import { isTauri } from "../lib/platform/system/shared";
 
 interface NavItem { id: ViewId; l: string; ic: IconName }
 interface NavGroup { group: string; items: NavItem[] }
 
 const NAV: NavGroup[] = [
-    { group: 'Playback',    items: [{ id: 'now',      l: 'Now Playing', ic: 'disc' }] },
-{ group: 'Browse',      items: [
-    { id: 'library',  l: 'Library',  ic: 'grid' },
-    { id: 'plugins',  l: 'Plugins',  ic: 'plug' },
-]},
-{ group: 'Application', items: [{ id: 'settings', l: 'Settings',   ic: 'gear' }] },
+    { group: 'Playback', items: [{ id: 'now', l: 'Now Playing', ic: 'disc' }] },
+    {
+        group: 'Browse', items: [
+            { id: 'library', l: 'Library', ic: 'grid' },
+            { id: 'plugins', l: 'Plugins', ic: 'plug' },
+        ]
+    },
+    { group: 'Application', items: [{ id: 'settings', l: 'Settings', ic: 'gear' }] },
 ];
 
+
 export function Sidebar() {
-    const { view, setView } = usePlayer();
+    const { view, setView, openFiles } = usePlayer();
+    const handleOpenFile = async () => {
+        if (isTauri) {
+            void openFiles()
+        } else {
+            setView('now');
+        }
+    };
+
     return (
         <aside className="w-54 shrink-0 flex flex-col bg-surface border-r border-border">
             <div className="flex-1 overflow-y-auto p-3 px-2.5">
                 {NAV.map(({ group, items }) => (
                     <div key={group}>
-                        <div className="text-[10px] font-bold tracking-[.09em] uppercase text-text-3 px-2.5 pt-3.5 pb-1.5
-            first:pt-0.5">{group}</div>
+                        <div className="nav-item text-[10px] font-bold tracking-[.09em] uppercase text-text-3 px-2.5 pt-3.5 pb-1.5 first:pt-0.5">{group}</div>
                         {items.map(it => (
                             <button
                                 key={it.id}
@@ -37,6 +48,13 @@ export function Sidebar() {
                         ))}
                     </div>
                 ))}
+                <button
+                    onClick={() => void handleOpenFile()}
+                    className="nav-base nav-hover"
+                >
+                    <Icon name="plus" size={16} />
+                    Open
+                </button>
             </div>
 
             <div className="p-2.5 border-t border-border">
