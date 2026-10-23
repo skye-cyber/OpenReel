@@ -203,7 +203,7 @@ At runtime, the app resolves them via `std::env::current_exe().parent()`. This w
 
 ### Release workflow
 
-`.github/workflows/build.yml` uses tauri-action. On tag push, it builds for ubuntu-latest / macos-latest / windows-latest, fetches sidecars first, and creates a draft release. Linux uses --bundles deb,rpm,appimage; macOS and Windows use their default bundles. prerelease is derived from the tag.
+`.github/workflows/release.yml` uses tauri-action. On tag push, it builds for ubuntu-latest / macos-latest / windows-latest, fetches sidecars first, and creates a draft release. Linux uses --bundles deb,rpm,appimage; macOS and Windows use their default bundles. prerelease is derived from the tag.
 
 ## Screens
 
