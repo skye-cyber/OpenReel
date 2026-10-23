@@ -40,8 +40,7 @@ export default defineConfig({
 
     build: {
         // Chromium (Windows) vs WebKit (macOS/Linux) targets.
-        target:
-            process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
+        target: process.env.TAURI_PLATFORM === 'windows' ? 'chrome105' : 'es2022',
         minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
         sourcemap: !!process.env.TAURI_ENV_DEBUG,
 
@@ -69,7 +68,11 @@ export default defineConfig({
             // },
         },
     },
-
+    optimizeDeps: {
+        esbuildOptions: {
+            target: 'es2022',
+        },
+    },
     resolve: {
         alias: {
             '@': resolve(import.meta.dirname, 'src/'),
