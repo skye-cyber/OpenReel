@@ -4,7 +4,7 @@ Desktop media player for Linux and other desktop platforms. React 18 + TypeScrip
 
 ## Requirements
 
-- **Node** 20 or later
+- **Node** 22 or later
 - **Rust** stable toolchain (via rustup)
 - **Linux build dependencies**:
 
