@@ -2,11 +2,18 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const repoRoot = path.resolve(__dirname, '..');
 const binDir = path.join(repoRoot, 'src-tauri', 'binaries');
 
+/**
+ * Get the Rust host triple. Used to name the sidecars so Tauri can
+ * find them at build time and rename them at bundle time.
+ */
 function triple() {
   const out = execSync('rustc -vV', { encoding: 'utf8' });
   const line = out.split('\n').find(l => l.startsWith('host:'));
@@ -22,6 +29,18 @@ function exists(name) {
   return fs.existsSync(path.join(binDir, name));
 }
 
+/**
+ * Download the johnvansickle static FFmpeg build and stage ffmpeg +
+ * ffprobe with the target-triple suffix.
+ *
+ * The archive layout is a versioned top-level directory:
+ *   ffmpeg-<version>-amd64-static/
+ *     ffmpeg, ffprobe, GPLv3.txt, manpages/, model/, qt-faststart, readme.txt
+ *
+ * curl -fL is required: -f exits on HTTP errors instead of writing an
+ * HTML error page to the file, -L follows the redirect that
+ * johnvansickle.com's stable alias uses.
+ */
 function downloadAndExtractLinux(t) {
   const arch = process.arch; // 'x64' | 'arm64'
   const url = arch === 'arm64'
@@ -37,21 +56,26 @@ function downloadAndExtractLinux(t) {
   // Verify it's actually an xz archive, not an HTML error page.
   const head = fs.readFileSync(archive).subarray(0, 6);
   if (head[0] !== 0xfd || head[1] !== 0x37 || head[2] !== 0x7a || head[3] !== 0x58) {
-    throw new Error(`Downloaded file is not an xz archive (first bytes: ${head.toString('hex')})`);
+    throw new Error(
+      `Downloaded file is not an xz archive (first bytes: ${head.toString('hex')}). ` +
+      `The download URL may have returned an HTML error page.`
+    );
   }
 
   if (fs.existsSync(extract)) fs.rmSync(extract, { recursive: true, force: true });
   fs.mkdirSync(extract, { recursive: true });
   execSync(`tar -xJf "${archive}" -C "${extract}"`, { stdio: 'inherit' });
 
-  // The archive contains a versioned top-level directory.
   const top = fs.readdirSync(extract, { withFileTypes: true })
   .find(e => e.isDirectory());
-  if (!top) throw new Error('Unexpected archive layout');
+  if (!top) throw new Error('Unexpected archive layout: no top-level directory');
 
   const srcDir = path.join(extract, top.name);
   for (const bin of ['ffmpeg', 'ffprobe']) {
     const src = path.join(srcDir, bin);
+    if (!fs.existsSync(src)) {
+      throw new Error(`Expected ${bin} at ${src}, but it doesn't exist`);
+    }
     const dest = path.join(binDir, `openreel-${bin}-${t}`);
     fs.copyFileSync(src, dest);
     fs.chmodSync(dest, 0o755);
@@ -59,6 +83,14 @@ function downloadAndExtractLinux(t) {
   }
 }
 
+/**
+ * Download the gyan.dev essentials FFmpeg build and stage ffmpeg.exe +
+ * ffprobe.exe with the target-triple suffix.
+ *
+ * The zip layout is a versioned top-level directory:
+ *   ffmpeg-<version>-essentials_build/
+ *     bin/ffmpeg.exe, bin/ffprobe.exe, ...
+ */
 function downloadWindows(t) {
   const url = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip';
   const zip = path.join(os.tmpdir(), 'ffmpeg-essentials.zip');
@@ -69,7 +101,6 @@ function downloadWindows(t) {
 
   if (fs.existsSync(extract)) fs.rmSync(extract, { recursive: true, force: true });
   fs.mkdirSync(extract, { recursive: true });
-  // Windows GitHub runner has PowerShell; use Expand-Archive.
   execSync(
     `powershell -NoProfile -Command "Expand-Archive -LiteralPath '${zip}' -DestinationPath '${extract}' -Force"`,
     { stdio: 'inherit' }
@@ -77,10 +108,13 @@ function downloadWindows(t) {
 
   const top = fs.readdirSync(extract, { withFileTypes: true })
   .find(e => e.isDirectory());
-  if (!top) throw new Error('Unexpected archive layout');
+  if (!top) throw new Error('Unexpected archive layout: no top-level directory');
 
   for (const bin of ['ffmpeg', 'ffprobe']) {
     const src = path.join(extract, top.name, 'bin', `${bin}.exe`);
+    if (!fs.existsSync(src)) {
+      throw new Error(`Expected ${bin}.exe at ${src}, but it doesn't exist`);
+    }
     const dest = path.join(binDir, `openreel-${bin}-${t}.exe`);
     fs.copyFileSync(src, dest);
     console.log(`Staged ${dest}`);
