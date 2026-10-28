@@ -114,7 +114,7 @@ export default function About() {
                             : '—'],
                         ['Audio backend', platformInfo?.audioBackend ?? '—'],
                         ['Display scaling', platformInfo ? `${Math.round(platformInfo.displayScaling * 100)}%` : '—'],
-                        ['Plugins loaded', `${plugins.filter(p => p.on).length} of ${plugins.length} installed`],
+                        ['Plugins loaded', `${plugins?.filter(p => p.on).length} of ${plugins.length} installed`],
                     ]} />
 
                     <div className="flex gap-2 mt-5">

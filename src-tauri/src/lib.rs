@@ -309,7 +309,7 @@ fn build_app() -> tauri::Builder<tauri::Wry> {
     .targets([
       // tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
       //   file_name: Some("openreel".into()),
-      // }
+      // })
       tauri_plugin_log::Target::new(
         tauri_plugin_log::TargetKind::Folder {
           path: make_log_dir(),
